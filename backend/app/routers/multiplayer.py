@@ -71,6 +71,20 @@ def matchmaking_player_payload(user_id: str, role: str, loadout: dict[str, str],
     }
 
 
+def room_has_distinct_opponents(room: dict[str, Any] | None) -> bool:
+    if not room:
+        return False
+    host_id = str(room.get("host_user_id") or "")
+    guest_id = str(room.get("guest_user_id") or "")
+    return bool(host_id and guest_id and host_id != guest_id)
+
+
+def user_has_matched_opponent(room: dict[str, Any] | None, user_id: str) -> bool:
+    if not room_has_distinct_opponents(room):
+        return False
+    return str(user_id) in {str(room.get("host_user_id")), str(room.get("guest_user_id"))}
+
+
 @router.post("/multiplayer/rooms")
 def create_room(room_request: MultiplayerRoomCreate, request: Request):
     user_id = resolve_multiplayer_user_id(request, str(room_request.user_id))
@@ -111,8 +125,9 @@ def join_queue(queue_mode: str, room_request: MultiplayerRoomCreate, request: Re
     previous_ticket = matchmaking_tickets.get(user_id)
     if previous_ticket and previous_ticket.get("status") == "matched":
         room = rooms.get(previous_ticket.get("room_code", ""))
-        if room:
+        if user_has_matched_opponent(room, user_id):
             return {"status": "matched", "role": previous_ticket.get("role", "host"), "ticket": previous_ticket, "room": room}
+        previous_ticket["status"] = "expired"
     queues[mode] = [ticket for ticket in queues[mode] if ticket["user_id"] != user_id and matchmaking_tickets.get(ticket["user_id"], {}).get("status") == "searching"]
     deferred: list[dict[str, Any]] = []
     while queues[mode]:
@@ -177,18 +192,22 @@ def queue_status(user_id: str, request: Request, mode: str = "fast", room_code: 
         room = rooms.get((room_code or "").upper()) if room_code else None
         if room and owned_user_id in {str(room.get("host_user_id")), str(room.get("guest_user_id"))}:
             role = "host" if str(room.get("host_user_id")) == owned_user_id else "guest"
-            status = "matched" if room.get("guest_user_id") else room.get("status", "searching")
+            status = "matched" if user_has_matched_opponent(room, owned_user_id) else room.get("status", "searching")
             return {"status": status, "role": role, "ticket": None, "room": room}
         return {"status": "idle", "ticket": None, "room": None}
     room = rooms.get(ticket.get("room_code", ""))
     if not room:
         ticket["status"] = "expired"
         return {"status": "expired", "ticket": ticket, "room": None}
-    if room.get("guest_user_id") and ticket.get("status") == "searching":
+    if user_has_matched_opponent(room, owned_user_id) and ticket.get("status") == "searching":
         ticket["status"] = "matched"
         ticket["role"] = "host" if str(room.get("host_user_id")) == owned_user_id else "guest"
         ticket["matched_at"] = room.get("updated_at") or datetime.now(timezone.utc).isoformat()
-    return {"status": ticket.get("status", room.get("status", "searching")), "role": ticket.get("role", "host"), "ticket": ticket, "room": room}
+    status = ticket.get("status", room.get("status", "searching"))
+    if status == "matched" and not user_has_matched_opponent(room, owned_user_id):
+        status = room.get("status", "searching")
+        ticket["status"] = status
+    return {"status": status, "role": ticket.get("role", "host"), "ticket": ticket, "room": room}
 
 
 @router.delete("/multiplayer/queue")
@@ -236,6 +255,8 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
     })
     if role == "host":
         room["host_user_id"] = user_id
+    if role != "host" and str(room.get("host_user_id") or "") == str(user_id) and not room.get("guest_user_id"):
+        role = "host"
     if role != "host" and not room.get("guest_user_id"):
         room["guest_user_id"] = user_id
         room["status"] = "ready"
@@ -249,7 +270,7 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
         "profile": {"user_id": str(user_id), "username": "Host" if role == "host" else "Guest"},
         "skinIds": {"piece": piece_skin or "", "board": board_skin or ""},
     }, connected=True)
-    if phase == "match" and room.get("host_user_id") and room.get("guest_user_id") and room.get("status") != "finished":
+    if phase == "match" and room_has_distinct_opponents(room) and room.get("status") != "finished":
         room["status"] = "in_match"
         room["updated_at"] = datetime.now(timezone.utc).isoformat()
     await broadcast(code, {"type": "room_state", "room": public_room_payload(room)})
@@ -472,6 +493,8 @@ async def send_challenge_event(user_id: str, payload: dict[str, Any]):
 def upsert_lobby_player(room: dict[str, Any], user_id: str, role: str, payload: dict[str, Any], connected: bool = True, ready: bool | None = None):
     players = room.setdefault("lobby_players", {})
     slot = "host" if role == "host" else "guest"
+    if slot == "guest" and str(room.get("host_user_id") or "") == str(user_id) and not room.get("guest_user_id"):
+        slot = "host"
     previous = players.get(slot, {})
     if not previous:
         legacy = players.pop(str(user_id), None)
@@ -516,7 +539,7 @@ def upsert_lobby_player(room: dict[str, Any], user_id: str, role: str, payload: 
     guest_ready = players.get("guest", {}).get("ready", False)
     if room.get("guest_user_id") and room.get("status") in {"waiting", "ready"}:
         room["status"] = "configuring"
-    if host_ready and guest_ready and room.get("guest_user_id") and room.get("status") not in {"in_match", "finished"}:
+    if host_ready and guest_ready and room_has_distinct_opponents(room) and room.get("status") not in {"in_match", "finished"}:
         room["status"] = "starting"
     room["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -554,7 +577,7 @@ def lobby_ready_to_start(room: dict[str, Any]) -> bool:
     players = room.get("lobby_players") or {}
     host = players.get("host")
     guest = players.get("guest")
-    return bool(host and guest and host.get("connected") and guest.get("connected") and host.get("ready") and guest.get("ready"))
+    return bool(room_has_distinct_opponents(room) and host and guest and host.get("connected") and guest.get("connected") and host.get("ready") and guest.get("ready"))
 
 
 def lobby_slot_for(room: dict[str, Any], user_id: str, role_hint: str | None = None) -> str:

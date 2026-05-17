@@ -110,6 +110,8 @@ const DEFAULT_QUESTS = [
   { quest_id: "daily_puzzle_solve", title: "Solve Daily Tactic", progress_count: 0, target_count: 1, reward_shards: 30, is_completed: false },
 ];
 const DEFAULT_SETTINGS = audioSettingsDefaults();
+const RANKED_ELO_WIN = 18;
+const RANKED_ELO_LOSS = -14;
 const DEFAULT_PROFILE = {
   name: "Player",
   username: "Player",
@@ -3739,6 +3741,21 @@ export function App() {
     }
 
     const piece = board[row][col];
+    const ownsClickedPiece = piece?.player === turn;
+    const passiveTarget = passiveTargets.some((item) => item.row === row && item.col === col);
+    const protectedTarget = protectedSquares.some((item) => item.row === row && item.col === col);
+    const blockedTarget = blockedSquares.some((item) => item.row === row && item.col === col);
+    if (!ownsClickedPiece && (passiveTarget || protectedTarget || blockedTarget)) {
+      if (blockedTarget) {
+        setMessage("That square is blocked by a board-control power this turn.");
+      } else if (protectedTarget) {
+        setMessage("That marker means the square or piece is protected; it is not a move target.");
+      } else {
+        setMessage(selected ? "That center marker belongs to Shield Wall, but the selected piece cannot reach it." : "Select a piece that can enter that center square to trigger Shield Wall.");
+      }
+      return;
+    }
+
     if (!piece || piece.player !== turn) {
       setSelected(null);
       setLegalMoves([]);
@@ -4359,6 +4376,9 @@ export function App() {
       essence: Number(reward.essence || 0) + Number(battlePassReward.essence || 0),
       exp: Number(reward.exp || 0) + Number(battlePassReward.exp || 0),
     };
+    const gameModeForReport = mode === "campaign" ? "campaign" : mode === "puzzle" ? "puzzle" : gameVariant;
+    const rankedMatch = isRankedEloMatch({ mode, room: multiplayerRoom, gameVariant });
+    const eloDelta = rankedEloDelta({ mode, room: multiplayerRoom, gameVariant, result });
     const nextProfile = applyProgression({
       ...profile,
       active_quests: questPatch.quests,
@@ -4371,14 +4391,14 @@ export function App() {
       opponent: mode === "campaign" ? "Nexus Campaign AI" : mode === "puzzle" ? "Daily Tactic AI" : mode === "multiplayer" ? "Remote Commander" : `${AI_LABELS[aiLevel]} Sparring AI`,
       aiProfileId: mode === "campaign" ? "campaign" : mode === "puzzle" ? "puzzle" : aiProfileId,
       difficulty: mode === "campaign" ? campaignLevel?.name || "Campaign" : mode === "puzzle" ? "Daily Puzzle" : AI_LABELS[aiLevel],
-      gameMode: mode === "campaign" ? "campaign" : mode === "puzzle" ? "puzzle" : gameVariant,
+      gameMode: gameModeForReport,
       captured,
       lost,
       turns,
       shards: totalReward.shards,
       essence: totalReward.essence || 0,
       exp: totalReward.exp,
-      elo: mode === "multiplayer" ? (result === "win" ? 18 : -14) : 0,
+      elo: eloDelta,
       review: review.length ? review : buildCoachReview({ result, captured, lost, turns, mode, campaignLevel, replay: replayForReview, finalBoard, loadout }),
       replay: replayForReview,
       replayFrames: buildReplayFrames(replayForReview, finalBoard),
@@ -4468,8 +4488,9 @@ export function App() {
       opponent_type: mode === "multiplayer" ? "Player" : "AI",
       ai_difficulty: mode === "multiplayer" ? null : aiDifficulty,
       opponent_ai_level: mode === "multiplayer" ? null : aiLevel,
-      game_mode: mode === "campaign" ? "campaign" : mode === "puzzle" ? "puzzle" : gameVariant,
+      game_mode: gameModeForReport,
       result,
+      is_ranked: rankedMatch,
       faction_id: loadout.factionId,
       passive_id: loadout.passiveId,
       ultimate_id: loadout.ultimateId,
@@ -4553,7 +4574,7 @@ export function App() {
     if (powerMode === "fortify" || powerMode === "crown_surge" || powerMode === "sun_lance") {
       return board.flatMap((row, rowIndex) =>
         row.map((piece, colIndex) => ({ piece, row: rowIndex, col: colIndex }))
-          .filter(({ piece, row }) => {
+          .filter(({ piece, row, col }) => {
             if (!piece || piece.player !== localPlayerColor) {
               return false;
             }
@@ -8239,12 +8260,18 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
   }
 
   function openMatchedRoom(room, roomCode, mode, role = "host") {
+    if (!hasMatchedOpponent(room, userId)) {
+      const resolvedCode = room?.room_code || roomCode || "";
+      setQueueState({ mode, label: "Searching for match...", roomCode: resolvedCode });
+      return false;
+    }
     clearMatchmakingTimers();
     const resolvedCode = room?.room_code || roomCode;
     const variant = normalizeGameVariant(room?.game_variant || gameVariant);
     setQueueState({ mode, label: `${queueVariantLabel(variant)} opponent found. Preparing room.`, roomCode: resolvedCode });
     onNotify?.(mode === "ranked" ? "Ranked match found" : "Match found", `${queueVariantLabel(variant)} rules paired into room ${resolvedCode}.`, "success");
     onStartRoom?.({ ...(room || {}), room_code: resolvedCode, mode, game_variant: variant }, role);
+    return true;
   }
 
   function pollForMatch(roomCode, mode, role = "host") {
@@ -8255,7 +8282,7 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
           if (!room) {
             return;
           }
-          if ((payload.status === "matched" || room.status === "ready") && room.guest_user_id) {
+          if ((payload.status === "matched" || room.status === "ready") && hasMatchedOpponent(room, userId)) {
             openMatchedRoom(room, room.room_code || roomCode, mode, payload.role || role);
             return;
           }
@@ -8269,7 +8296,7 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
           getMultiplayerRoom(roomCode)
             .then((payload) => {
               const room = payload.room;
-              if ((room?.status === "ready" || room?.guest_user_id) && room?.guest_user_id) {
+              if ((room?.status === "ready" || room?.guest_user_id) && hasMatchedOpponent(room, userId)) {
                 openMatchedRoom(room, room.room_code || roomCode, mode, role);
                 return;
               }
@@ -8293,7 +8320,7 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
       .then((payload) => {
         const roomCode = payload.room?.room_code || payload.ticket?.room_code || "";
         const matched = payload.status === "matched";
-        if (matched && roomCode) {
+        if (matched && roomCode && hasMatchedOpponent(payload.room, userId)) {
           openMatchedRoom(payload.room, roomCode, mode, payload.role || "guest");
           return;
         }
@@ -9263,12 +9290,12 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
       applyBoardSkin(boardSkinConfigFor(state.cosmetics));
       updatePieceMaterials(materials, renderPieceColors(state.pieceColors, state.cosmetics));
       clearGroup(markerGroup);
-      state.passiveTargets.forEach((item) => addMarker(item.row, item.col, 0x00e5ff, 0.16, 0.5));
+      state.passiveTargets.forEach((item) => addMarker(item.row, item.col, 0x2ee88f, 0.2, 0.5));
       state.legalMoves.forEach((move) => addMarker(move.to.row, move.to.col, move.captured ? 0xffb400 : 0x00e5ff, move.captured ? 0.5 : 0.36, move.captured ? 0.44 : 0.34));
       state.powerTargets.forEach((item) => addMarker(item.row, item.col, 0x9d4edd, 0.42, 0.4));
       state.tutorialTargets.forEach((item) => addMarker(item.row, item.col, item.kind === "capture" ? 0xff4d6d : item.kind === "source" ? 0xffffff : 0xffb400, 0.38, item.kind === "source" ? 0.52 : 0.46));
       state.blockedSquares.forEach((item) => addMarker(item.row, item.col, 0xff4d6d, 0.34, 0.42));
-      state.protectedSquares.forEach((item) => addMarker(item.row, item.col, 0x00e5ff, 0.22, 0.46));
+      state.protectedSquares.forEach((item) => addMarker(item.row, item.col, 0x3f8cff, 0.24, 0.46));
       if (state.selected) addMarker(state.selected.row, state.selected.col, 0xffffff, 0.5, 0.48);
       activePieces.forEach((pieceObject, id) => rememberedPositions.set(id, pieceObject.position.clone()));
       clearGroup(pieceGroup);
@@ -10283,8 +10310,38 @@ function isPowerVariant(value = "power") {
   return normalizeGameVariant(value) === "power";
 }
 
+function isRankedEloMatch({ mode, room, gameVariant }) {
+  return mode === "multiplayer" && room?.mode === "ranked" && isPowerVariant(gameVariant);
+}
+
+function rankedEloDelta({ mode, room, gameVariant, result }) {
+  if (!isRankedEloMatch({ mode, room, gameVariant })) {
+    return 0;
+  }
+  if (result === "win") {
+    return RANKED_ELO_WIN;
+  }
+  if (result === "loss") {
+    return RANKED_ELO_LOSS;
+  }
+  return 0;
+}
+
 function queueVariantLabel(value = "power") {
   return isPowerVariant(value) ? "Powers" : "Basic";
+}
+
+function hasMatchedOpponent(room, userId = "") {
+  if (!room) {
+    return false;
+  }
+  const hostId = String(room.host_user_id || "");
+  const guestId = String(room.guest_user_id || "");
+  if (!hostId || !guestId || hostId === guestId) {
+    return false;
+  }
+  const currentUserId = String(userId || "");
+  return !currentUserId || hostId === currentUserId || guestId === currentUserId;
 }
 
 function normalizeQuests(quests = []) {

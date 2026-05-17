@@ -464,6 +464,7 @@ def analyze_match_with_coach(analysis: CoachAnalysisRequest):
 def record_match(match: MatchHistoryCreate, request: Request):
     supabase = supabase_or_503()
     owned_user_id = resolve_owned_user_id(request, str(match.user_id))
+    ranked_elo_match = match.opponent_type == "Player" and match.is_ranked and match.game_mode != "classic"
     payload = {
         "p_user_id": owned_user_id,
         "p_result": match.result,
@@ -480,7 +481,7 @@ def record_match(match: MatchHistoryCreate, request: Request):
         "p_duration_seconds": match.duration_seconds,
         "p_replay": match.replay,
         "p_review_summary": match.review_summary,
-        "p_mmr_delta": 0 if match.opponent_type == "AI" else match.mmr_delta,
+        "p_mmr_delta": match.mmr_delta if ranked_elo_match else 0,
         "p_base_exp": match.base_exp,
         "p_essence_reward": match.essence_reward,
         "p_shards_reward": match.shards_reward,

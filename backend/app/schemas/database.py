@@ -142,6 +142,7 @@ class MatchHistoryCreate(BaseModel):
     replay: list[dict[str, Any]] = Field(default_factory=list)
     review_summary: list[str] = Field(default_factory=list)
     mmr_delta: int = 0
+    is_ranked: bool = False
     base_exp: int = Field(default=80, ge=0)
     essence_reward: int = Field(default=0, ge=0)
     shards_reward: int = Field(default=0, ge=0)

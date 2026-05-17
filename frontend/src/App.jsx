@@ -71,6 +71,8 @@ import { proArtFor } from "./proArt.js";
 import { PremiumPieceSkin, PremiumPieceSkinPreview, isPremium2DPieceSkin } from "./premiumPieceSkins.jsx";
 
 const SHOW_ADMIN_DEMO = import.meta.env.DEV || String(import.meta.env.VITE_SHOW_ADMIN_DEMO || "").toLowerCase() === "true";
+const APP_NAME = "Aether Tactics";
+const BRAND_LOGO_SRC = "/assets/brand/aether-tactics-logo.svg";
 const DEMO_GUIDE_KEY = "dama-demo-guide-step";
 const DEMO_GUIDE_STEPS = ["nexus", "campaign", "match", "report", "vault"];
 const DEFAULT_LOADOUT = { factionId: "nomads", passiveId: "open_roads", ultimateId: "dash" };
@@ -187,7 +189,7 @@ const DEFAULT_MATCH_REPORT = {
 };
 const EMPTY_FRIENDS_DATA = { friends: [], incoming: [], outgoing: [] };
 const CHECKERS_COACH_SYSTEM_PROMPT = [
-  "You are an expert Checkers coach for Aether-Tactics.",
+  "You are an expert Checkers coach for Aether Tactics.",
   "Use only the supplied board state, replay, recent moves, result, mode, and loadout.",
   "Give tactical advice about forced captures, multi-jumps, center control, promotion lanes, king activity, piece safety, and faction abilities.",
   "Do not invent unavailable moves. Reference concrete squares when they are present.",
@@ -220,9 +222,10 @@ const NEXUS_ROUTES = [
   { id: "vault", label: "The Vault", subtext: "Rare Skins & Packs", icon: "vault" },
   { id: "inventory", label: "Inventory", subtext: "Boards, Disks & Badges", icon: "inventory" },
   { id: "codex", label: "Abilities Codex", subtext: "Lore & Mastery", icon: "book" },
+  { id: "settings", label: "Settings", subtext: "Audio & display", icon: "settings" },
 ];
 const AUTH_REQUIRED_ROUTES = new Set(["campaign", "daily-puzzle", "multiplayer", "progression", "battle-pass", "vault", "inventory", "codex", "settings", "loadout", "factions"]);
-const AUTH_REQUIRED_VIEWS = new Set(["campaign-select", "campaign-map", "daily-puzzle", "multiplayer", "progression", "battle-pass", "vault", "inventory", "loadout", "factions", "settings", "versus-intro"]);
+const AUTH_REQUIRED_VIEWS = new Set(["campaign-select", "campaign-map", "daily-puzzle", "multiplayer", "progression", "battle-pass", "vault", "inventory", "loadout", "factions", "profile", "settings", "versus-intro"]);
 const NEXUS_FRIENDS = [
   { user_id: "demo-kaelen", username: "Kaelen_Void", name: "Kaelen_Void", faction: "Void Order", favorite_faction: "void_order", avatar: "KV", bio: "Reads tempo like telemetry.", city: "Almaty", level: 9, pvp_stats: { wins: 18, losses: 8, current_win_streak: 4, mmr_elo_rating: 1320 }, threat: "Tactical", presence: "online" },
   { user_id: "demo-suns", username: "Suns_Herald", name: "Suns_Herald", faction: "Sun Court", favorite_faction: "sun_court", avatar: "SH", bio: "Promotion lanes first, captures second.", city: "Astana", level: 7, pvp_stats: { wins: 12, losses: 11, current_win_streak: 1, mmr_elo_rating: 1085 }, threat: "Defensive", presence: "in_menu" },
@@ -273,6 +276,7 @@ const SKIRMISH_DIFFICULTIES = [
 const VIEW_PATHS = {
   nexus: "/menu",
   register: "/login",
+  profile: "/profile",
   settings: "/settings",
   vault: "/vault",
   inventory: "/inventory",
@@ -335,6 +339,14 @@ function syncBrowserRoute(nextView, nextMode = "ai", replace = false, lobbyCode 
   }
   const state = { view: nextView, mode: nextMode };
   window.history[replace ? "replaceState" : "pushState"](state, "", nextPath);
+}
+function applyAppSettings(nextSettings) {
+  const settings = normalizeSettings(nextSettings);
+  configureAudio(settings);
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.reducedMotion = settings.reducedMotion ? "true" : "false";
+    document.documentElement.dataset.theme = settings.theme;
+  }
 }
 function AppGlobalBackButton({ onBack, label = "Back" }) {
   return (
@@ -1518,6 +1530,7 @@ export function App() {
 
   function goBackFromCurrentView() {
     const fallbackTargets = {
+      profile: "nexus",
       settings: "nexus",
       vault: "nexus",
       inventory: "nexus",
@@ -1740,10 +1753,7 @@ export function App() {
   }, [friendsData, isAuthenticated]);
 
   useEffect(() => {
-    configureAudio(profile.settings);
-    const nextSettings = normalizeSettings(profile.settings);
-    document.documentElement.dataset.reducedMotion = nextSettings.reducedMotion ? "true" : "false";
-    document.documentElement.dataset.theme = nextSettings.theme;
+    applyAppSettings(profile.settings);
   }, [profile.settings]);
 
   useEffect(() => {
@@ -2608,6 +2618,8 @@ export function App() {
       socket.send(JSON.stringify({
         type: "sync_request",
         from_user_id: activeUserId,
+        loadout,
+        gameVariant,
         skinIds: equippedSkinIds,
         playerColor: multiplayerRole === "guest" ? "black" : "white",
       }));
@@ -3147,17 +3159,20 @@ export function App() {
     }
     const challenge = normalizeChallenge(event.challenge || {});
     const role = event.role === "guest" ? "guest" : "host";
+    const roomPlayers = event.room?.lobby_players || {};
+    const hostRoomPlayer = roomPlayers.host || {};
+    const guestRoomPlayer = roomPlayers.guest || {};
     const hostProfile = normalizePublicProfile({ ...challenge.from_profile, user_id: challenge.from_user_id });
     const guestProfile = normalizePublicProfile({ ...challenge.target_profile, user_id: challenge.target_user_id });
-    const hostSkinIds = normalizeSkinIds(event.room?.player_skin_ids?.[challenge.from_user_id] || challenge.skinIds);
-    const guestSkinIds = normalizeSkinIds(event.room?.player_skin_ids?.[challenge.target_user_id] || (role === "guest" ? equippedSkinIds : {}));
+    const hostSkinIds = normalizeSkinIds(hostRoomPlayer.skinIds || hostRoomPlayer.skin_ids || event.room?.player_skin_ids?.[challenge.from_user_id] || challenge.skinIds);
+    const guestSkinIds = normalizeSkinIds(guestRoomPlayer.skinIds || guestRoomPlayer.skin_ids || event.room?.player_skin_ids?.[challenge.target_user_id] || (role === "guest" ? equippedSkinIds : {}));
     const localPlayer = createLobbyPlayer(profile, activeUserId, loadout, factions, equippedSkinIds);
     const hostPlayer = role === "host"
       ? localPlayer
-      : createLobbyPlayer(hostProfile, challenge.from_user_id, challenge.loadout, factions, hostSkinIds);
+      : lobbyPlayerFromServer({ ...hostProfile, ...hostRoomPlayer, loadout: hostRoomPlayer.loadout || challenge.loadout, skinIds: hostSkinIds }, factions);
     const guestPlayer = role === "guest"
       ? localPlayer
-      : createLobbyPlayer(guestProfile, challenge.target_user_id, DEFAULT_LOADOUT, factions, guestSkinIds);
+      : lobbyPlayerFromServer({ ...guestProfile, ...guestRoomPlayer, loadout: guestRoomPlayer.loadout || event.room?.guest_loadout || DEFAULT_LOADOUT, skinIds: guestSkinIds }, factions);
     const nextState = {
       code: roomCode,
       status: "configuring",
@@ -3342,7 +3357,7 @@ export function App() {
 
   function saveProfilePatch(patch) {
     if (!isAuthenticated) {
-      requireAuth("Profile settings");
+      requireAuth("Commander profile");
       return;
     }
     const nextProfile = normalizeProfile({ ...profile, ...patch, name: patch.username || patch.name || profile.name });
@@ -3784,96 +3799,98 @@ export function App() {
     let nextMarkedPiece = markedPiece;
     let campaignCompleted = false;
 
-    if (move.captured && localMove) {
-      setMomentum((value) => Math.min(9, value + 1));
-      nextReview.push("Momentum gained from a clean capture.");
-      if (loadout.passiveId === "vengeance_ledger" && abilityFlags.vengeanceReady) {
+    if (isPowerVariant(gameVariant)) {
+      if (move.captured && localMove) {
         setMomentum((value) => Math.min(9, value + 1));
-        nextAbilityFlags.vengeanceReady = false;
-        nextReview.push("Vengeance Ledger paid out bonus Momentum.");
+        nextReview.push("Momentum gained from a clean capture.");
+        if (loadout.passiveId === "vengeance_ledger" && abilityFlags.vengeanceReady) {
+          setMomentum((value) => Math.min(9, value + 1));
+          nextAbilityFlags.vengeanceReady = false;
+          nextReview.push("Vengeance Ledger paid out bonus Momentum.");
+        }
+        if (loadout.passiveId === "echo_mark" && result.capturedPiece?.id === markedPiece?.id) {
+          setMomentum((value) => Math.min(9, value + 1));
+          nextMarkedPiece = null;
+          nextReview.push("Echo Mark claimed. Bonus Momentum gained.");
+        }
       }
-      if (loadout.passiveId === "echo_mark" && result.capturedPiece?.id === markedPiece?.id) {
+
+      if (move.captured && enemyMove && result.capturedPiece?.player === localPlayerColor && loadout.passiveId === "vengeance_ledger" && abilityFlags.vengeanceTriggers < 2) {
+        nextAbilityFlags.vengeanceReady = true;
+        nextAbilityFlags.vengeanceTriggers += 1;
+        nextReview.push("Vengeance Ledger primed: your next capture gains Momentum.");
+      }
+
+      if (result.promoted) {
+        nextReview.push(`${turn === "white" ? "Azure" : "Amber"} promoted a king.`);
+        if (enemyMove && loadout.passiveId === "crown_tax" && !abilityFlags.crownTax) {
+          setMomentum((value) => Math.min(9, value + 2));
+          nextAbilityFlags.crownTax = true;
+          nextReview.push("Crown Tax triggered: +2 Momentum after enemy promotion.");
+        }
+      }
+
+      const reachedEnemyFinalRows = localPlayerColor === "white" ? move.to.row <= 2 : move.to.row >= 5;
+      if (localMove && !result.piece.king && reachedEnemyFinalRows && loadout.passiveId === "royal_pressure" && !abilityFlags.royalPressure) {
         setMomentum((value) => Math.min(9, value + 1));
-        nextMarkedPiece = null;
-        nextReview.push("Echo Mark claimed. Bonus Momentum gained.");
+        nextAbilityFlags.royalPressure = true;
+        nextReview.push("Royal Pressure gained Momentum in the enemy final rows.");
       }
-    }
 
-    if (move.captured && enemyMove && result.capturedPiece?.player === localPlayerColor && loadout.passiveId === "vengeance_ledger" && abilityFlags.vengeanceTriggers < 2) {
-      nextAbilityFlags.vengeanceReady = true;
-      nextAbilityFlags.vengeanceTriggers += 1;
-      nextReview.push("Vengeance Ledger primed: your next capture gains Momentum.");
-    }
-
-    if (result.promoted) {
-      nextReview.push(`${turn === "white" ? "Azure" : "Amber"} promoted a king.`);
-      if (enemyMove && loadout.passiveId === "crown_tax" && !abilityFlags.crownTax) {
-        setMomentum((value) => Math.min(9, value + 2));
-        nextAbilityFlags.crownTax = true;
-        nextReview.push("Crown Tax triggered: +2 Momentum after enemy promotion.");
+      if (localMove && loadout.passiveId === "shield_wall" && !abilityFlags.shieldWall && !isCenterSquare(move.from) && isCenterSquare(move.to)) {
+        nextAbilityFlags.shieldWall = true;
+        nextProtectedSquares = addProtectedSquare(nextProtectedSquares, move.to, "Shield Wall", {
+          pieceId: result.piece.id,
+          owner: localPlayerColor,
+          enemyTurnsRemaining: 1,
+        });
+        campaignCompleted = maybeCompleteCampaign("passive_trigger", "shield_wall", result.board, nextReplay, nextMoveLog) || campaignCompleted;
+        nextReview.push(`Shield Wall guarded ${squareName(move.to)} in the center zone.`);
+        showAbilityFeedback("shield_wall", `Shield Wall triggered on ${squareName(move.to)}. The center entry is protected for the enemy turn.`);
       }
-    }
 
-    const reachedEnemyFinalRows = localPlayerColor === "white" ? move.to.row <= 2 : move.to.row >= 5;
-    if (localMove && !result.piece.king && reachedEnemyFinalRows && loadout.passiveId === "royal_pressure" && !abilityFlags.royalPressure) {
-      setMomentum((value) => Math.min(9, value + 1));
-      nextAbilityFlags.royalPressure = true;
-      nextReview.push("Royal Pressure gained Momentum in the enemy final rows.");
-    }
-
-    if (localMove && loadout.passiveId === "shield_wall" && !abilityFlags.shieldWall && !isCenterSquare(move.from) && isCenterSquare(move.to)) {
-      nextAbilityFlags.shieldWall = true;
-      nextProtectedSquares = addProtectedSquare(nextProtectedSquares, move.to, "Shield Wall", {
-        pieceId: result.piece.id,
-        owner: localPlayerColor,
-        enemyTurnsRemaining: 1,
-      });
-      campaignCompleted = maybeCompleteCampaign("passive_trigger", "shield_wall", result.board, nextReplay, nextMoveLog) || campaignCompleted;
-      nextReview.push(`Shield Wall guarded ${squareName(move.to)} in the center zone.`);
-      showAbilityFeedback("shield_wall", `Shield Wall triggered on ${squareName(move.to)}. The center entry is protected for the enemy turn.`);
-    }
-
-    if (move.passiveId === "open_roads") {
-      campaignCompleted = maybeCompleteCampaign("passive_move", "open_roads", result.board, nextReplay, nextMoveLog) || campaignCompleted;
-      nextReview.push("Open Roads created a backward escape.");
-      showAbilityFeedback("open_roads");
-    }
-    if (loadout.passiveId === "dust_veil" && localMove && !move.captured) {
-      nextProtectedSquares = addProtectedSquare(nextProtectedSquares, move.to, "Dust Veil", {
-        pieceId: result.piece.id,
-        owner: localPlayerColor,
-        enemyTurnsRemaining: 1,
-      });
-      campaignCompleted = maybeCompleteCampaign("passive_trigger", "dust_veil", result.board, nextReplay, nextMoveLog) || campaignCompleted;
-      nextReview.push("Dust Veil guarded the moved piece.");
-      showAbilityFeedback("dust_veil");
-    }
-
-    if (enemyMove && loadout.passiveId === "echo_mark" && !move.captured) {
-      nextMarkedPiece = { id: result.piece.id, row: move.to.row, col: move.to.col };
-      nextReview.push(`Echo Mark tagged ${squareName(move.to)}.`);
-    }
-
-    if (localMove && loadout.passiveId === "pressure_field" && !abilityFlags.pressureField) {
-      const enemyColor = localPlayerColor === "white" ? "black" : "white";
-      const enemyCaptures = getLegalMoves(result.board, enemyColor, { ...getMoveOptions(enemyColor), protectedSquares: nextProtectedSquares }).filter((candidate) => candidate.captured);
-      if (enemyCaptures.length > 0) {
-        setMomentum((value) => Math.min(9, value + 1));
-        nextAbilityFlags.pressureField = true;
-        nextReview.push("Pressure Field sensed danger and granted Momentum.");
+      if (move.passiveId === "open_roads") {
+        campaignCompleted = maybeCompleteCampaign("passive_move", "open_roads", result.board, nextReplay, nextMoveLog) || campaignCompleted;
+        nextReview.push("Open Roads created a backward escape.");
+        showAbilityFeedback("open_roads");
       }
-    }
+      if (loadout.passiveId === "dust_veil" && localMove && !move.captured) {
+        nextProtectedSquares = addProtectedSquare(nextProtectedSquares, move.to, "Dust Veil", {
+          pieceId: result.piece.id,
+          owner: localPlayerColor,
+          enemyTurnsRemaining: 1,
+        });
+        campaignCompleted = maybeCompleteCampaign("passive_trigger", "dust_veil", result.board, nextReplay, nextMoveLog) || campaignCompleted;
+        nextReview.push("Dust Veil guarded the moved piece.");
+        showAbilityFeedback("dust_veil");
+      }
 
-    if (move.powerId && move.powerId !== "sun_lance") {
-      setMomentum((value) => Math.max(0, value - (ultimate?.cost || 2)));
-      setUltimateUsed(true);
-      showAbilityFeedback(move.powerId);
-      campaignCompleted = maybeCompleteCampaign("ultimate_move", move.powerId, result.board, nextReplay, nextMoveLog) || campaignCompleted;
-      nextReview.push(`${ultimate?.name} changed the board tempo.`);
-    }
-    if (move.powerId === "sun_lance") {
-      showAbilityFeedback("sun_lance");
-      campaignCompleted = maybeCompleteCampaign("ultimate_move", "sun_lance", result.board, nextReplay, nextMoveLog) || campaignCompleted;
+      if (enemyMove && loadout.passiveId === "echo_mark" && !move.captured) {
+        nextMarkedPiece = { id: result.piece.id, row: move.to.row, col: move.to.col };
+        nextReview.push(`Echo Mark tagged ${squareName(move.to)}.`);
+      }
+
+      if (localMove && loadout.passiveId === "pressure_field" && !abilityFlags.pressureField) {
+        const enemyColor = localPlayerColor === "white" ? "black" : "white";
+        const enemyCaptures = getLegalMoves(result.board, enemyColor, { ...getMoveOptions(enemyColor), protectedSquares: nextProtectedSquares }).filter((candidate) => candidate.captured);
+        if (enemyCaptures.length > 0) {
+          setMomentum((value) => Math.min(9, value + 1));
+          nextAbilityFlags.pressureField = true;
+          nextReview.push("Pressure Field sensed danger and granted Momentum.");
+        }
+      }
+
+      if (move.powerId && move.powerId !== "sun_lance") {
+        setMomentum((value) => Math.max(0, value - (ultimate?.cost || 2)));
+        setUltimateUsed(true);
+        showAbilityFeedback(move.powerId);
+        campaignCompleted = maybeCompleteCampaign("ultimate_move", move.powerId, result.board, nextReplay, nextMoveLog) || campaignCompleted;
+        nextReview.push(`${ultimate?.name} changed the board tempo.`);
+      }
+      if (move.powerId === "sun_lance") {
+        showAbilityFeedback("sun_lance");
+        campaignCompleted = maybeCompleteCampaign("ultimate_move", "sun_lance", result.board, nextReplay, nextMoveLog) || campaignCompleted;
+      }
     }
 
     const chainProtectedSquares = nextProtectedSquares;
@@ -4172,6 +4189,10 @@ export function App() {
     playSound("click");
     const localPlayerColor = getLocalPlayerColor(mode, multiplayerRole);
     const tutorialStep = getCampaignTutorialStep(campaignTutorial);
+    if (!isPowerVariant(gameVariant)) {
+      setMessage("Basic mode uses standard checkers rules. Powers are disabled.");
+      return;
+    }
     if (isGuidedCampaignTutorialActive(campaignTutorial) && tutorialStep?.actor === "player" && !isPowerTutorialStep(tutorialStep)) {
       rejectCampaignTutorialMove(tutorialStep, "Do not spend the ultimate here.");
       return;
@@ -4497,14 +4518,14 @@ export function App() {
   }
 
   function getMoveOptions(player, overrides = {}) {
-    const classicAi = gameVariant === "classic" && mode === "ai";
+    const powersEnabled = isPowerVariant(gameVariant);
     const localPlayerColor = getLocalPlayerColor(mode, multiplayerRole);
     const playerUsesLoadout = mode === "multiplayer" ? player === localPlayerColor : player === "white";
     return {
-      passiveId: !classicAi && playerUsesLoadout ? loadout.passiveId : null,
+      passiveId: powersEnabled && playerUsesLoadout ? loadout.passiveId : null,
       blockedSquares,
       protectedSquares,
-      allowBackwardCapturePieceId: playerUsesLoadout ? sunLancePieceId : null,
+      allowBackwardCapturePieceId: powersEnabled && playerUsesLoadout ? sunLancePieceId : null,
       forcedFrom: captureChain && player === turn ? captureChain : null,
       ...overrides,
     };
@@ -4558,9 +4579,9 @@ export function App() {
   }
 
   function getPassiveTargets() {
-    const classicAi = gameVariant === "classic" && mode === "ai";
+    const powersEnabled = isPowerVariant(gameVariant);
     const localPlayerColor = getLocalPlayerColor(mode, multiplayerRole);
-    if (classicAi || winner || powerMode || turn !== localPlayerColor || loadout.passiveId !== "shield_wall" || abilityFlags.shieldWall) {
+    if (!powersEnabled || winner || powerMode || turn !== localPlayerColor || loadout.passiveId !== "shield_wall" || abilityFlags.shieldWall) {
       return [];
     }
     const targets = new Map();
@@ -4571,7 +4592,7 @@ export function App() {
   }
 
   if (!data) {
-    return <main className="loading">Preparing Dama Sprint...</main>;
+    return <main className="loading">Preparing {APP_NAME}...</main>;
   }
 
   if (view === "register") {
@@ -4621,7 +4642,7 @@ export function App() {
               openPostMatch(true);
             }
           }}
-          onProfile={() => setView("settings")}
+          onProfile={() => setView("profile")}
           onLogin={() => {
             setAuthError("");
             setView("register");
@@ -4683,11 +4704,18 @@ export function App() {
     );
   }
 
+  if (view === "profile") {
+    if (!isAuthenticated) {
+      return withBackNavigation(<GuestLockedScreen feature="Commander Profile" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
+    }
+    return withBackNavigation(<CommanderProfileScreen profile={profile} factions={factions} message={economyMessage} connectionHealth={connectionHealth} isSaving={profileBusy} onSave={saveProfilePatch} onHome={() => setView("nexus")} onVault={() => setView("vault")} />);
+  }
+
   if (view === "settings") {
     if (!isAuthenticated) {
-      return withBackNavigation(<GuestLockedScreen feature="Profile settings" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
+      return withBackNavigation(<GuestLockedScreen feature="Settings" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
     }
-    return withBackNavigation(<ProfileSettingsScreen profile={profile} factions={factions} message={economyMessage} connectionHealth={connectionHealth} isSaving={profileBusy} onSave={saveProfilePatch} onHome={() => setView("nexus")} onVault={() => setView("vault")} onTestSound={(name) => playSound(name)} onTestVoice={() => speakLine("Aether systems online.")} />);
+    return withBackNavigation(<SettingsScreen profile={profile} message={economyMessage} isSaving={profileBusy} onSave={saveProfilePatch} onHome={() => setView("nexus")} onTestSound={(name) => playSound(name)} onTestVoice={() => speakLine("Aether systems online.")} />);
   }
 
   if (view === "vault") {
@@ -4760,7 +4788,7 @@ export function App() {
     if (!isAuthenticated) {
       return withBackNavigation(<GuestLockedScreen feature="Abilities Codex" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
     }
-    return withBackNavigation(<FactionAbilitiesShowcase profile={profile} factions={factions} onBack={() => setView("nexus")} onLoadout={() => setView("loadout")} onProfile={() => setView("settings")} onSettings={() => setView("settings")} onRewards={() => addNotification("Faction rewards", "Rewards unlock as you level and complete campaign sectors.", "info")} />);
+    return withBackNavigation(<FactionAbilitiesShowcase profile={profile} factions={factions} onBack={() => setView("nexus")} onLoadout={() => setView("loadout")} onProfile={() => setView("profile")} onRewards={() => addNotification("Faction rewards", "Rewards unlock as you level and complete campaign sectors.", "info")} />);
   }
 
   if (view === "progression" || view === "battle-pass") {
@@ -4822,7 +4850,6 @@ export function App() {
         profile={profile}
         isAuthenticated={isAuthenticated}
         onBack={() => setView("nexus")}
-        onSettings={() => isAuthenticated ? setView("settings") : setView("register")}
         onLogin={() => setView("register")}
         onAuthRequired={requireAuth}
         onConfirm={({ variant, difficulty }) => {
@@ -4963,7 +4990,7 @@ export function App() {
   }
 
   if (FEATURE_VIEWS[view]) {
-    return withBackNavigation(<NexusFeatureScreen feature={FEATURE_VIEWS[view]} onNavigate={routeFromNexus} onHome={() => setView("nexus")} />);
+    return withBackNavigation(<NexusFeatureScreen feature={FEATURE_VIEWS[view]} onHome={() => setView("nexus")} />);
   }
 
   if (view === "multiplayer") {
@@ -4988,7 +5015,7 @@ export function App() {
           onGameVariant={(variant) => setGameVariant(normalizeGameVariant(variant))}
           onNavigate={routeFromNexus}
           onHome={() => setView("nexus")}
-          onProfile={() => setView("settings")}
+          onProfile={() => setView("profile")}
           onNotify={addNotification}
           onStartRoom={startMultiplayerRoom}
           onHostLobby={openHostedLobby}
@@ -5014,7 +5041,7 @@ export function App() {
   }
 
   if (view === "postmatch") {
-    return withBackNavigation(<PostMatchSummary profile={profile} report={matchReport} isVictory={postMatchVictory} onHome={() => setView("nexus")} onSettings={() => setView(isAuthenticated ? "settings" : "register")} onVault={() => { setDemoGuideStep("vault"); setView("vault"); }} onPowerSkirmish={() => { setPendingMatchSetup(null); setView("skirmish-config"); }} onRetryMoment={() => setEconomyMessage("Retry Moment is ready below the coach report. Step through the replay and try the better move.")} onRematch={() => {
+    return withBackNavigation(<PostMatchSummary profile={profile} report={matchReport} isVictory={postMatchVictory} onHome={() => setView("nexus")} onVault={() => { setDemoGuideStep("vault"); setView("vault"); }} onPowerSkirmish={() => { setPendingMatchSetup(null); setView("skirmish-config"); }} onRetryMoment={() => setEconomyMessage("Retry Moment is ready below the coach report. Step through the replay and try the better move.")} onRematch={() => {
       const stats = normalizeMatchReport(matchReport, DEFAULT_MATCH_REPORT);
       if (stats.gameMode === "campaign" && stats.campaignLevelId) {
         const level = campaign?.levels?.find((item) => item.id === stats.campaignLevelId) || campaignLevel;
@@ -5100,10 +5127,13 @@ export function App() {
   return (
     <main className="app">
       <aside className="panel left-panel">
-        <div>
-          <p className="eyebrow">nFactorial startup prototype</p>
-          <h1>Dama Sprint</h1>
-          <p className="muted">Fast checkers duels with AI sparring, faction loadouts, and comeback campaign puzzles.</p>
+        <div className="panel-brand">
+          <AetherLogoMark className="panel-logo-mark" />
+          <div>
+            <p className="eyebrow">nFactorial startup prototype</p>
+            <h1>{APP_NAME}</h1>
+            <p className="muted">Fast checkers duels with AI sparring, faction loadouts, and comeback campaign puzzles.</p>
+          </div>
           <button className="nexus-back" onClick={() => setView("nexus")}>Nexus Core</button>
         </div>
 
@@ -5133,10 +5163,10 @@ export function App() {
           </div>
         </section>
 
-        {gameVariant === "classic" && mode === "ai" ? (
+        {!isPowerVariant(gameVariant) ? (
           <section className="section faction-section">
-            <div className="section-title"><span>Classic rules</span><span>No abilities</span></div>
-            <p className="muted">This skirmish disables passives, ultimates, and momentum so the match is decided only by standard checkers tactics.</p>
+            <div className="section-title"><span>Basic rules</span><span>No abilities</span></div>
+            <p className="muted">This match disables passives, ultimates, and momentum so the board is decided only by standard checkers tactics.</p>
           </section>
         ) : (
           <FactionLoadout
@@ -5155,10 +5185,10 @@ export function App() {
         <div className="summary-grid">
           <Summary label="Turn" value={turn === "white" ? "Azure" : "Amber"} />
           <Summary label="Move" value={String(Math.floor(moveLog.length / 2) + 1)} />
-          <Summary label={gameVariant === "classic" && mode === "ai" ? "Rules" : "Power"} value={gameVariant === "classic" && mode === "ai" ? "Classic" : String(momentum)} />
+          <Summary label={!isPowerVariant(gameVariant) ? "Rules" : "Power"} value={!isPowerVariant(gameVariant) ? "Basic" : String(momentum)} />
         </div>
         <div className="actions">
-          <button className="primary" onClick={armPower} disabled={(gameVariant === "classic" && mode === "ai") || turn !== getLocalPlayerColor(mode, multiplayerRole) || winner}>{gameVariant === "classic" && mode === "ai" ? "No abilities" : (powerMode ? "Cancel" : ultimate?.name)}</button>
+          <button className="primary" onClick={armPower} disabled={!isPowerVariant(gameVariant) || turn !== getLocalPlayerColor(mode, multiplayerRole) || winner}>{!isPowerVariant(gameVariant) ? "No abilities" : (powerMode ? "Cancel" : ultimate?.name)}</button>
           <button onClick={() => startMatch(mode, campaignLevel)}>Reset</button>
         </div>
       </aside>
@@ -5294,6 +5324,23 @@ function AdminDashboard({ profile, factions = [], inventoryItems = [], vaultItem
   );
 }
 
+function AetherLogoMark({ className = "aether-logo-mark" }) {
+  return (
+    <span className={className} aria-hidden="true">
+      <img src={BRAND_LOGO_SRC} alt="" />
+    </span>
+  );
+}
+
+function AetherBrandLockup({ label = APP_NAME, className = "nexus-logo" }) {
+  return (
+    <div className={className}>
+      <AetherLogoMark />
+      <strong>{label}</strong>
+    </div>
+  );
+}
+
 function NexusGatewayRegistration({ profile, error, isBusy = false, showAdminDemo = false, onSubmit, onBack, onAdminAccess }) {
   const [handle, setHandle] = useState(profile.name === "Player" ? "" : profile.name);
   const [email, setEmail] = useState(profile.email || "");
@@ -5313,7 +5360,8 @@ function NexusGatewayRegistration({ profile, error, isBusy = false, showAdminDem
     <main className="nexus-gateway">
       <section className="gateway-card" aria-label="Nexus Gateway registration">
         <header className="gateway-header">
-          <h1>Aether-<span>Tactics</span></h1>
+          <AetherLogoMark className="gateway-logo-mark" />
+          <h1>Aether <span>Tactics</span></h1>
           <p>Nexus Gateway // Enlistment Protocol 7.2</p>
         </header>
 
@@ -5388,7 +5436,7 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
   return (
     <main className={`nexus-core ${friendsCollapsed ? "social-collapsed" : ""}`}>
       <header className="nexus-topbar">
-        <div className="nexus-logo"><span>AT</span><strong>Nexus Core</strong></div>
+        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
         <div className="nexus-currencies">
           {isAuthenticated ? (
             <>
@@ -5420,7 +5468,7 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
                       </span>
                     </header>
                     {profile.is_admin && <button onClick={() => selectProfileAction(() => onNavigate("admin-dashboard"))}>Admin Dashboard</button>}
-                    <button onClick={() => selectProfileAction(onProfile)}>Profile Settings</button>
+                    <button onClick={() => selectProfileAction(onProfile)}>Commander Profile</button>
                     <button onClick={() => selectProfileAction(() => onNavigate("progression"))}>Statistics</button>
                     <button onClick={() => selectProfileAction(() => latestMatch && onMatchSummary(latestMatch))} disabled={!latestMatch}>Review Previous Matches</button>
                     <button className="profile-menu-logout" onClick={() => selectProfileAction(onLogout)}>Logout</button>
@@ -5580,13 +5628,12 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
   );
 }
 
-function ProfileSettingsScreen({ profile, factions, message, connectionHealth = {}, isSaving = false, onSave, onHome, onVault, onTestSound, onTestVoice }) {
+function CommanderProfileScreen({ profile, factions, message, connectionHealth = {}, isSaving = false, onSave, onHome, onVault }) {
   const [draft, setDraft] = useState(profile);
   const [tab, setTab] = useState("profile");
   const nextExp = expRequiredForLevel(draft.level);
   const progress = Math.min(100, Math.round((draft.current_exp / nextExp) * 100));
   const unlocked = factions.filter((faction) => draft.unlocked_factions?.includes(faction.id));
-  const settings = normalizeSettings(draft.settings);
   const earnedBadges = earnedBadgeCosmetics(draft);
   const equippedBadge = equippedBadgeForProfile(draft);
 
@@ -5596,10 +5643,6 @@ function ProfileSettingsScreen({ profile, factions, message, connectionHealth = 
 
   function updateDraft(key, value) {
     setDraft((current) => ({ ...current, [key]: value }));
-  }
-
-  function updateSettings(key, value) {
-    setDraft((current) => ({ ...current, settings: normalizeSettings({ ...current.settings, [key]: value }) }));
   }
 
   function equipBadge(badgeId) {
@@ -5613,14 +5656,14 @@ function ProfileSettingsScreen({ profile, factions, message, connectionHealth = 
       <header className="profile-topbar">
         <button onClick={onHome} disabled={isSaving}>{"<"}</button>
         <div>
-          <small>Aether-Tactics / Commander Console</small>
-          <h1>Profile & Settings</h1>
+          <small>Aether Tactics / Commander Console</small>
+          <h1>Commander Profile</h1>
         </div>
         <button onClick={onVault} disabled={isSaving}>Open Vault</button>
       </header>
 
-      <nav className="profile-tabs" aria-label="Profile settings">
-        {["profile", "audio", "gameplay", "account"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}
+      <nav className="profile-tabs" aria-label="Profile sections">
+        {["profile", "account"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}
       </nav>
 
       <section className="profile-layout">
@@ -5661,44 +5704,6 @@ function ProfileSettingsScreen({ profile, factions, message, connectionHealth = 
               <p>{message}</p>
             </div>
           )}
-          {tab === "audio" && (
-            <div className="settings-grid">
-              <label>Main Menu Track<select value={settings.musicTrack} onChange={(event) => updateSettings("musicTrack", event.target.value)}>
-                {MENU_MUSIC_TRACKS.map((track) => <option key={track.id} value={track.id}>{track.title}</option>)}
-              </select></label>
-              {[
-                ["masterVolume", "Master Volume"],
-                ["musicVolume", "Music Volume"],
-                ["sfxVolume", "SFX Volume"],
-                ["voiceVolume", "Voice Volume"],
-              ].map(([key, label]) => (
-                <label key={key}>{label}<input type="range" min="0" max="100" value={settings[key]} onChange={(event) => updateSettings(key, Number(event.target.value))} /><span>{settings[key]}%</span></label>
-              ))}
-              {[
-                ["musicEnabled", "Music Enabled"],
-                ["sfxEnabled", "SFX Enabled"],
-                ["voiceEnabled", "Voice Enabled"],
-              ].map(([key, label]) => (
-                <label key={key} className="toggle-row">{label}<input type="checkbox" checked={settings[key]} onChange={(event) => updateSettings(key, event.target.checked)} /></label>
-              ))}
-              <div className="settings-actions">
-                <button onClick={() => onTestSound?.("ultimate")} disabled={isSaving}>Test SFX</button>
-                <button onClick={onTestVoice} disabled={isSaving}>Test Voice</button>
-              </div>
-              <button className="profile-save" onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Saving..." : "Save Audio Settings"}</button>
-            </div>
-          )}
-          {tab === "gameplay" && (
-            <div className="settings-grid">
-              <label>Visual Theme<select value={settings.theme} onChange={(event) => updateSettings("theme", event.target.value)}>
-                <option value="dark">Dark Nexus</option>
-                <option value="light">Light Command</option>
-              </select></label>
-              <label className="toggle-row">Reduced Motion<input type="checkbox" checked={settings.reducedMotion} onChange={(event) => updateSettings("reducedMotion", event.target.checked)} /></label>
-              <p>Theme and reduced motion apply globally across Nexus, match screens, campaign, and post-match reports.</p>
-              <button className="profile-save" onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Saving..." : "Save Gameplay Settings"}</button>
-            </div>
-          )}
           {tab === "account" && (
             <div className="settings-grid">
               <p>Account identity is powered by Supabase Auth. Profile data, inventory, match history, and friends are owned by your authenticated commander id.</p>
@@ -5732,6 +5737,85 @@ function ProfileSettingsScreen({ profile, factions, message, connectionHealth = 
             {(unlocked.length ? unlocked : factions.slice(0, 1)).map((faction) => <span key={faction.id}>{faction.crest} {faction.name}</span>)}
           </div>
         </aside>
+      </section>
+    </main>
+  );
+}
+
+function SettingsScreen({ profile, message, isSaving = false, onSave, onHome, onTestSound, onTestVoice }) {
+  const [draft, setDraft] = useState(() => normalizeSettings(profile.settings));
+  const savedSettingsRef = useRef(normalizeSettings(profile.settings));
+
+  useEffect(() => {
+    const nextSettings = normalizeSettings(profile.settings);
+    savedSettingsRef.current = nextSettings;
+    setDraft(nextSettings);
+  }, [profile.settings]);
+
+  useEffect(() => () => applyAppSettings(savedSettingsRef.current), []);
+
+  function updateSettings(key, value) {
+    const nextSettings = normalizeSettings({ ...draft, [key]: value });
+    setDraft(nextSettings);
+    applyAppSettings(nextSettings);
+  }
+
+  function saveSettings() {
+    onSave?.({ settings: normalizeSettings(draft) });
+  }
+
+  return (
+    <main className="profile-screen settings-screen">
+      <header className="profile-topbar">
+        <button onClick={onHome} disabled={isSaving}>{"<"}</button>
+        <div>
+          <small>Aether Tactics / Nexus Console</small>
+          <h1>Settings</h1>
+        </div>
+        <button onClick={saveSettings} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</button>
+      </header>
+
+      <section className="profile-layout settings-layout">
+        <article className="profile-card settings-card">
+          <h2>Audio</h2>
+          <div className="settings-grid">
+            <label>Main Menu Track<select value={draft.musicTrack} onChange={(event) => updateSettings("musicTrack", event.target.value)}>
+              {MENU_MUSIC_TRACKS.map((track) => <option key={track.id} value={track.id}>{track.title}</option>)}
+            </select></label>
+            {[
+              ["masterVolume", "Master Volume"],
+              ["musicVolume", "Music Volume"],
+              ["sfxVolume", "SFX Volume"],
+              ["voiceVolume", "Voice Volume"],
+            ].map(([key, label]) => (
+              <label key={key}>{label}<input type="range" min="0" max="100" value={draft[key]} onChange={(event) => updateSettings(key, Number(event.target.value))} /><span>{draft[key]}%</span></label>
+            ))}
+            {[
+              ["musicEnabled", "Menu Music"],
+              ["sfxEnabled", "SFX"],
+              ["voiceEnabled", "Voice"],
+            ].map(([key, label]) => (
+              <label key={key} className="toggle-row">{label}<input type="checkbox" checked={draft[key]} onChange={(event) => updateSettings(key, event.target.checked)} /></label>
+            ))}
+            <div className="settings-actions">
+              <button onClick={() => onTestSound?.("ultimate")} disabled={isSaving}>Test SFX</button>
+              <button onClick={onTestVoice} disabled={isSaving}>Test Voice</button>
+            </div>
+          </div>
+        </article>
+
+        <article className="profile-card settings-card">
+          <h2>Display</h2>
+          <div className="settings-grid">
+            <label>Visual Theme<select value={draft.theme} onChange={(event) => updateSettings("theme", event.target.value)}>
+              <option value="dark">Dark Nexus</option>
+              <option value="light">Light Command</option>
+            </select></label>
+            <label className="toggle-row">Reduced Motion<input type="checkbox" checked={draft.reducedMotion} onChange={(event) => updateSettings("reducedMotion", event.target.checked)} /></label>
+            <button className="profile-save" onClick={saveSettings} disabled={isSaving}>{isSaving ? "Saving..." : "Save Settings"}</button>
+            <p>{message}</p>
+          </div>
+        </article>
       </section>
     </main>
   );
@@ -6220,7 +6304,7 @@ function BattlePassRewardVisual({ tier }) {
   return <b className="currency-reward">{tier.reward.shards ? "S" : tier.reward.essence ? "E" : "XP"}</b>;
 }
 
-function PostMatchSummary({ profile, report = DEFAULT_MATCH_REPORT, isVictory, onHome, onSettings, onRematch, onShare, onNextCampaignLevel, onVault, onPowerSkirmish, onRetryMoment }) {
+function PostMatchSummary({ profile, report = DEFAULT_MATCH_REPORT, isVictory, onHome, onRematch, onShare, onNextCampaignLevel, onVault, onPowerSkirmish, onRetryMoment }) {
   const resultClass = isVictory ? "victory" : "defeat";
   const stats = normalizeMatchReport(report, DEFAULT_MATCH_REPORT);
   const isCampaignVictory = stats.gameMode === "campaign" && stats.result === "win";
@@ -6231,15 +6315,13 @@ function PostMatchSummary({ profile, report = DEFAULT_MATCH_REPORT, isVictory, o
   return (
     <main className={`postmatch ${resultClass}`}>
       <header className="nexus-topbar">
-        <div className="nexus-logo"><span>AT</span><strong>Aether-Tactics</strong></div>
+        <AetherBrandLockup />
         <div className="nexus-currencies">
           <span><b>E</b>{profile.essence}</span>
           <span><b>S</b>{profile.shards}</span>
         </div>
         <div className="nexus-actions">
           <button onClick={onHome}>NC</button>
-          <button aria-label="Settings" onClick={onSettings}>ST</button>
-          <button className="nexus-avatar" aria-label="Profile" onClick={onSettings}>{(profile.username || "P").slice(0, 1)}</button>
         </div>
       </header>
       <section className="postmatch-body">
@@ -7034,7 +7116,7 @@ function DailyPuzzleScreen({ profile, onBack, onStart }) {
   );
 }
 
-function FactionAbilitiesShowcase({ profile, factions = [], onBack, onLoadout, onProfile, onSettings, onRewards }) {
+function FactionAbilitiesShowcase({ profile, factions = [], onBack, onLoadout, onProfile, onRewards }) {
   const sourceFactions = factions.length ? factions : FACTION_SHOWCASE.map((item) => ({
     id: item.id,
     name: item.name,
@@ -7072,7 +7154,6 @@ function FactionAbilitiesShowcase({ profile, factions = [], onBack, onLoadout, o
         </div>
         <div className="showcase-actions">
           <button aria-label="Profile" onClick={onProfile}>PR</button>
-          <button aria-label="Settings" onClick={onSettings}>ST</button>
         </div>
       </header>
 
@@ -7268,7 +7349,7 @@ function BattlefieldMatch({
   ultimateUsed,
   winner,
 }) {
-  const isClassic = gameVariant === "classic" && mode === "ai";
+  const isClassic = !isPowerVariant(gameVariant);
   const ultimateCost = ultimate?.cost || 2;
   const charge = isClassic ? 0 : Math.min(100, Math.round((momentum / ultimateCost) * 100));
   const playerColor = multiplayerRole === "guest" ? "black" : "white";
@@ -7284,13 +7365,13 @@ function BattlefieldMatch({
   const opponentPowerMeta = opponentLoadout?.passiveId
     ? `${abilityLabel(opponentLoadout.passiveId)} / ${abilityLabel(opponentLoadout.ultimateId)}`
     : opponentProfile?.city || "Unknown sector";
-  const opponentMeta = mode === "campaign" ? `${campaignLevel?.name || "Faction Trial"} // ${getAiPersonalityLabel(persona)}` : mode === "puzzle" ? `Daily challenge // ${getAiPersonalityLabel(persona)}` : mode === "multiplayer" ? `${multiplayerStatus} // ${opponentPowerMeta}` : `${gameVariant === "classic" ? "Classic" : "Power"} simulation // ${getAiPersonalityLabel(persona)}`;
+  const opponentMeta = mode === "campaign" ? `${campaignLevel?.name || "Faction Trial"} // ${getAiPersonalityLabel(persona)}` : mode === "puzzle" ? `Daily challenge // ${getAiPersonalityLabel(persona)}` : mode === "multiplayer" ? `${multiplayerStatus} // ${isClassic ? "Basic rules" : opponentPowerMeta}` : `${isClassic ? "Basic" : "Power"} simulation // ${getAiPersonalityLabel(persona)}`;
   const opponentArtProfile = mode === "campaign" ? "campaign" : mode === "puzzle" ? "puzzle" : aiProfileId || aiLevel;
   const logEntries = moveLog.length
     ? moveLog.map((entry, index) => `[${String(12 + Math.floor(index / 3)).padStart(2, "0")}:${String(45 + ((index * 2) % 15)).padStart(2, "0")}] ${entry}`)
     : BATTLEFIELD_LOG;
   const powerStatus = isClassic
-    ? "Classic rules"
+    ? "Basic rules"
     : powerMode
       ? "Armed - choose target"
       : ultimateUsed
@@ -7501,7 +7582,7 @@ function MatchEmoteIcon({ emote }) {
   );
 }
 
-function SkirmishConfiguration({ profile, isAuthenticated, onBack, onSettings, onLogin, onAuthRequired, onConfirm }) {
+function SkirmishConfiguration({ profile, isAuthenticated, onBack, onLogin, onAuthRequired, onConfirm }) {
   const [variantId, setVariantId] = useState(isAuthenticated ? "power" : "classic");
   const [difficultyId, setDifficultyId] = useState("nexus_prime");
   const [feedback, setFeedback] = useState("");
@@ -7534,7 +7615,7 @@ function SkirmishConfiguration({ profile, isAuthenticated, onBack, onSettings, o
         <div className="os-left">
           <button className="skirmish-back" onClick={onBack} aria-label="Back to Nexus">{"<"}</button>
           <div className="aether-brand">
-            <span>A</span>
+            <AetherLogoMark />
             <strong>Aether</strong>
             <small>Tactics_OS</small>
           </div>
@@ -7550,7 +7631,6 @@ function SkirmishConfiguration({ profile, isAuthenticated, onBack, onSettings, o
         <div className="commander-chip">
           {isAuthenticated ? (
             <>
-              <button aria-label="Settings" onClick={onSettings}>ST</button>
               <div><strong>{profile.username}</strong><small>LVL {profile.level}</small></div>
               <CommanderPortrait profile={profile} />
             </>
@@ -7746,7 +7826,7 @@ function TacticalLoadout({ profile = DEFAULT_PROFILE, factions = [], loadout = D
       <header className="loadout-topbar">
         <button className="loadout-back" onClick={onBack} aria-label="Back to Nexus">{"<"}</button>
         <div className="loadout-title">
-          <p>Aether-Tactics / Combat Rig</p>
+          <p>Aether Tactics / Combat Rig</p>
           <h1>Tactical Loadout</h1>
           <span>Configure your modular rig before entering the board.</span>
         </div>
@@ -7926,19 +8006,18 @@ function NexusMenuIcon({ name }) {
   return <svg {...common}><path d="M4 7h10" /><path d="M18 7h2" /><circle cx="16" cy="7" r="2" /><path d="M4 17h2" /><path d="M10 17h10" /><circle cx="8" cy="17" r="2" /></svg>;
 }
 
-function NexusFeatureScreen({ feature, onNavigate, onHome }) {
+function NexusFeatureScreen({ feature, onHome }) {
   const nowPlaying = musicTrackTitle(DEFAULT_SETTINGS.musicTrack);
   return (
     <main className="nexus-core feature-core">
       <header className="nexus-topbar">
-        <div className="nexus-logo"><span>AT</span><strong>Nexus Core</strong></div>
+        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
         <div className="nexus-currencies">
           <span><b>E</b>2,450</span>
           <span><b>S</b>12,800</span>
         </div>
         <div className="nexus-actions">
           <button onClick={onHome}>NC</button>
-          <button aria-label="Settings" onClick={() => onNavigate("settings")}>ST</button>
           <button className="nexus-avatar" aria-label="Profile">P</button>
         </div>
       </header>
@@ -7968,7 +8047,7 @@ function GuestLockedScreen({ feature, onHome, onLogin }) {
   return (
     <main className="nexus-core feature-core">
       <header className="nexus-topbar">
-        <div className="nexus-logo"><span>AT</span><strong>Nexus Core</strong></div>
+        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
         <div className="nexus-currencies"><span className="guest-pill">Guest AI Trial</span></div>
         <div className="nexus-actions"><button className="guest-auth-button" onClick={onLogin}>Login / Register</button></div>
       </header>
@@ -8086,7 +8165,7 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
   return (
     <main className="ops-shell">
       <header className="nexus-topbar">
-        <div className="nexus-logo"><span>AT</span><strong>Aether-Tactics / Nexus Core</strong></div>
+        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
         <div className="nexus-currencies">
           <span><b>E</b>{profile.essence}</span>
           <span><b>S</b>{profile.shards}</span>
@@ -8094,7 +8173,6 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
         </div>
         <div className="nexus-actions">
           <button onClick={onHome}>NC</button>
-          <button aria-label="Settings" onClick={() => onNavigate("settings")}>ST</button>
           <button className="nexus-avatar" aria-label="Profile" onClick={onProfile}>{(profile.username || "P").slice(0, 1)}</button>
         </div>
       </header>
@@ -8112,12 +8190,18 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
   );
 }
 
-function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSearchResults, userId, leaderboard, leaderboardCity, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
+function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSearchResults, profile = DEFAULT_PROFILE, factions = [], loadout = DEFAULT_LOADOUT, gameVariant = "power", userId, leaderboard, leaderboardCity, onLoadout, onGameVariant, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
   const [queueState, setQueueState] = useState({ mode: "idle", label: "Connected to Nexus_Core_Node_01", roomCode: "" });
   const [joinCode, setJoinCode] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const queuePollRef = useRef(null);
   const queueTimeoutRef = useRef(null);
+  const selectedVariant = normalizeGameVariant(gameVariant);
+  const selectedLoadout = normalizeLobbyLoadout(loadout, factions);
+  const selectedFaction = factions.find((faction) => faction.id === selectedLoadout.factionId) || factions[0];
+  const selectedPassive = selectedFaction?.passives?.find((ability) => ability.id === selectedLoadout.passiveId) || selectedFaction?.passives?.[0];
+  const selectedUltimate = selectedFaction?.ultimates?.find((ability) => ability.id === selectedLoadout.ultimateId) || selectedFaction?.ultimates?.[0];
+  const setupLocked = queueState.mode !== "idle";
   const filteredLeaderboard = filterLeaderboardByCity(leaderboard || [], leaderboardCity);
   const leaderboardSource = filteredLeaderboard.length ? filteredLeaderboard : normalizeLeaderboardCity(leaderboardCity) === "global" && !(leaderboard || []).length ? MULTIPLAYER_LEADERS : [];
   const leaders = leaderboardSource.slice(0, 5).map((row, index) => ({
@@ -8144,22 +8228,23 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
     }
   }
 
-  function startMatchmakingTimeout(mode, roomCode = "") {
+  function startMatchmakingTimeout(mode, roomCode = "", variant = selectedVariant) {
     queueTimeoutRef.current = window.setTimeout(() => {
       clearMatchmakingTimers();
       cancelMultiplayerQueue(userId).catch((error) => onNotify?.("Queue cancel failed", error.message || "Could not cancel queue on the server.", "warning"));
       setQueueState({ mode: "idle", label: "No players found. Please try again later.", roomCode: "" });
       onNotify?.("Matchmaking timeout", "No players found. Please try again later.", "warning");
     }, 600000);
-    setQueueState((current) => ({ ...current, mode, roomCode: roomCode || current.roomCode, label: "Searching for match..." }));
+    setQueueState((current) => ({ ...current, mode, roomCode: roomCode || current.roomCode, label: `Searching for ${queueVariantLabel(variant).toLowerCase()} match...` }));
   }
 
   function openMatchedRoom(room, roomCode, mode, role = "host") {
     clearMatchmakingTimers();
     const resolvedCode = room?.room_code || roomCode;
-    setQueueState({ mode, label: "Opponent found. Preparing room.", roomCode: resolvedCode });
-    onNotify?.(mode === "ranked" ? "Ranked match found" : "Match found", `Paired into room ${resolvedCode}.`, "success");
-    onStartRoom?.({ ...(room || {}), room_code: resolvedCode, mode }, role);
+    const variant = normalizeGameVariant(room?.game_variant || gameVariant);
+    setQueueState({ mode, label: `${queueVariantLabel(variant)} opponent found. Preparing room.`, roomCode: resolvedCode });
+    onNotify?.(mode === "ranked" ? "Ranked match found" : "Match found", `${queueVariantLabel(variant)} rules paired into room ${resolvedCode}.`, "success");
+    onStartRoom?.({ ...(room || {}), room_code: resolvedCode, mode, game_variant: variant }, role);
   }
 
   function pollForMatch(roomCode, mode, role = "host") {
@@ -8200,9 +8285,11 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
       onNotify?.("Login required", "Login to use multiplayer matchmaking.", "warning");
       return;
     }
+    const queueVariant = normalizeGameVariant(gameVariant);
+    const queueLoadout = normalizeLobbyLoadout(loadout, factions);
     clearMatchmakingTimers();
-    setQueueState({ mode, label: "Searching for match...", roomCode: "" });
-    joinMultiplayerQueue({ userId, mode })
+    setQueueState({ mode, label: `Searching for ${queueVariantLabel(queueVariant).toLowerCase()} match...`, roomCode: "" });
+    joinMultiplayerQueue({ userId, mode, gameVariant: queueVariant, loadout: queueLoadout })
       .then((payload) => {
         const roomCode = payload.room?.room_code || payload.ticket?.room_code || "";
         const matched = payload.status === "matched";
@@ -8211,9 +8298,9 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
           return;
         }
         if (roomCode) {
-          setQueueState({ mode, label: "Searching for match...", roomCode });
-          onNotify?.(mode === "ranked" ? "Ranked queue" : "Fast match", "Searching for match...", "info");
-          startMatchmakingTimeout(mode, roomCode);
+          setQueueState({ mode, label: `Searching for ${queueVariantLabel(queueVariant).toLowerCase()} match...`, roomCode });
+          onNotify?.(mode === "ranked" ? "Ranked queue" : "Fast match", `${queueVariantLabel(queueVariant)} matchmaking started.`, "info");
+          startMatchmakingTimeout(mode, roomCode, queueVariant);
           pollForMatch(roomCode, mode, payload.role || "host");
           return;
         }
@@ -8294,26 +8381,36 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
     <div className="multiplayer-ops">
       <div className="ops-main">
         <header className="ops-header">
-          <p>Aether-Tactics / Nexus Core</p>
+          <p>Aether Tactics / Nexus Core</p>
           <h2>Multiplayer Operations</h2>
           <span>{queueState.label}{queueState.roomCode ? ` // ${queueState.roomCode}` : ""}</span>
         </header>
+
+        <QueueMatchSetup
+          profile={profile}
+          factions={factions}
+          variant={selectedVariant}
+          loadout={selectedLoadout}
+          disabled={setupLocked}
+          onVariant={onGameVariant}
+          onLoadout={onLoadout}
+        />
 
         <section className="ops-section">
           <div className="ops-title"><i />The Queue</div>
           <div className="queue-grid">
             <button className={`queue-card fast-card ${queueState.mode === "fast" ? "active" : ""}`} onClick={() => beginQueue("fast")}>
               <span className="ops-icon">X</span>
-              <small>ETA: 1:20</small>
+              <small>{queueVariantLabel(selectedVariant)} // ETA: 1:20</small>
               <strong>Fast Match</strong>
-              <p>Instant skirmish deployment with balanced casual matchmaking.</p>
+              <p>{isPowerVariant(selectedVariant) ? `${selectedFaction?.name || "Faction"} with ${selectedPassive?.name || "Passive"} and ${selectedUltimate?.name || "Ultimate"}.` : `${selectedFaction?.name || "Faction"} identity with standard checkers rules.`}</p>
               <b>Begin Search</b>
             </button>
             <button className={`queue-card ranked-card ${queueState.mode === "ranked" ? "active" : ""}`} onClick={() => beginQueue("ranked")}>
               <span className="ops-icon">Q</span>
-              <small>ETA: 2:45</small>
+              <small>{queueVariantLabel(selectedVariant)} // ETA: 2:45</small>
               <strong>Ranked Queue</strong>
-              <p>Competitive Elo ladder with high-stakes city leaderboard progress.</p>
+              <p>Competitive Elo ladder using the same selected rules and loadout as Fast Match.</p>
               <b>Begin Search</b>
             </button>
           </div>
@@ -8402,6 +8499,83 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
         </section>
       </aside>
     </div>
+  );
+}
+
+function QueueMatchSetup({ profile = DEFAULT_PROFILE, factions = [], variant = "power", loadout = DEFAULT_LOADOUT, disabled = false, onVariant, onLoadout }) {
+  const selectedVariant = normalizeGameVariant(variant);
+  const selectedLoadout = normalizeLobbyLoadout(loadout, factions);
+  const selectedFaction = factions.find((faction) => faction.id === selectedLoadout.factionId) || factions[0];
+  const passives = selectedFaction?.passives || [];
+  const ultimates = selectedFaction?.ultimates || [];
+  const powersEnabled = isPowerVariant(selectedVariant);
+  const unlockedFactions = new Set(profile.unlocked_factions?.length ? profile.unlocked_factions : ["nomads"]);
+
+  function chooseFaction(faction) {
+    if (!faction || disabled || !unlockedFactions.has(faction.id)) {
+      return;
+    }
+    onLoadout?.({
+      factionId: faction.id,
+      passiveId: faction.passives?.[0]?.id || "open_roads",
+      ultimateId: faction.ultimates?.[0]?.id || "dash",
+    });
+  }
+
+  return (
+    <section className="ops-section queue-setup">
+      <div className="ops-title"><i />Match Setup</div>
+      <div className="queue-variant-toggle" role="group" aria-label="Match rules">
+        <button className={selectedVariant === "power" ? "active" : ""} onClick={() => onVariant?.("power")} disabled={disabled}>
+          <span>P</span>
+          <strong>Powers</strong>
+          <small>Faction abilities on</small>
+        </button>
+        <button className={selectedVariant === "classic" ? "active" : ""} onClick={() => onVariant?.("classic")} disabled={disabled}>
+          <span>B</span>
+          <strong>Basic</strong>
+          <small>Standard rules</small>
+        </button>
+      </div>
+      <div className="queue-loadout-setup">
+        <section>
+          <div className="ops-mini-title"><span>Faction</span><b>{selectedFaction?.name || "None"}</b></div>
+          <div className="queue-faction-picker">
+            {factions.map((faction) => {
+              const unlocked = unlockedFactions.has(faction.id);
+              return (
+                <button key={faction.id} className={selectedFaction?.id === faction.id ? "active" : ""} onClick={() => chooseFaction(faction)} disabled={disabled || !unlocked}>
+                  <span>{faction.crest || faction.name.slice(0, 1)}</span>
+                  <strong>{faction.name}</strong>
+                  <small>{unlocked ? "Ready" : "Locked"}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        <section className={!powersEnabled ? "basic-disabled" : ""}>
+          <div className="ops-mini-title"><span>Abilities</span><b>{powersEnabled ? "Enabled" : "Disabled"}</b></div>
+          <div className="queue-ability-picker">
+            <article>
+              <small>Passive</small>
+              {passives.map((ability) => (
+                <button key={ability.id} className={selectedLoadout.passiveId === ability.id ? "active" : ""} onClick={() => onLoadout?.({ ...selectedLoadout, passiveId: ability.id })} disabled={disabled || !powersEnabled}>
+                  {ability.name}
+                </button>
+              ))}
+            </article>
+            <article>
+              <small>Ultimate</small>
+              {ultimates.map((ability) => (
+                <button key={ability.id} className={selectedLoadout.ultimateId === ability.id ? "active" : ""} onClick={() => onLoadout?.({ ...selectedLoadout, ultimateId: ability.id })} disabled={disabled || !powersEnabled}>
+                  {ability.name}
+                </button>
+              ))}
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -9631,22 +9805,42 @@ function toProfileUpsert(userId, profile) {
   };
 }
 
+function normalizePercentSetting(value, fallback) {
+  const number = Number(value ?? fallback);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+}
+
+function normalizeBooleanSetting(value, fallback) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "false") {
+      return false;
+    }
+    if (value.toLowerCase() === "true") {
+      return true;
+    }
+  }
+  return Boolean(value ?? fallback);
+}
+
 function normalizeSettings(settings = {}) {
   const theme = settings?.theme === "light" ? "light" : "dark";
   return {
     ...DEFAULT_SETTINGS,
     ...(settings || {}),
-    masterVolume: Number(settings?.masterVolume ?? DEFAULT_SETTINGS.masterVolume),
-    musicVolume: Number(settings?.musicVolume ?? DEFAULT_SETTINGS.musicVolume),
-    sfxVolume: Number(settings?.sfxVolume ?? DEFAULT_SETTINGS.sfxVolume),
-    voiceVolume: Number(settings?.voiceVolume ?? DEFAULT_SETTINGS.voiceVolume),
-    musicEnabled: Boolean(settings?.musicEnabled ?? DEFAULT_SETTINGS.musicEnabled),
-    sfxEnabled: Boolean(settings?.sfxEnabled ?? DEFAULT_SETTINGS.sfxEnabled),
-    voiceEnabled: Boolean(settings?.voiceEnabled ?? DEFAULT_SETTINGS.voiceEnabled),
-    reducedMotion: Boolean(settings?.reducedMotion ?? DEFAULT_SETTINGS.reducedMotion),
+    masterVolume: normalizePercentSetting(settings?.masterVolume, DEFAULT_SETTINGS.masterVolume),
+    musicVolume: normalizePercentSetting(settings?.musicVolume, DEFAULT_SETTINGS.musicVolume),
+    sfxVolume: normalizePercentSetting(settings?.sfxVolume, DEFAULT_SETTINGS.sfxVolume),
+    voiceVolume: normalizePercentSetting(settings?.voiceVolume, DEFAULT_SETTINGS.voiceVolume),
+    musicEnabled: normalizeBooleanSetting(settings?.musicEnabled, DEFAULT_SETTINGS.musicEnabled),
+    sfxEnabled: normalizeBooleanSetting(settings?.sfxEnabled, DEFAULT_SETTINGS.sfxEnabled),
+    voiceEnabled: normalizeBooleanSetting(settings?.voiceEnabled, DEFAULT_SETTINGS.voiceEnabled),
+    reducedMotion: normalizeBooleanSetting(settings?.reducedMotion, DEFAULT_SETTINGS.reducedMotion),
     theme,
     musicTrack: MENU_MUSIC_TRACKS.some((track) => track.id === settings?.musicTrack) ? settings.musicTrack : DEFAULT_SETTINGS.musicTrack,
-    onboardingCompleted: Boolean(settings?.onboardingCompleted ?? DEFAULT_SETTINGS.onboardingCompleted),
+    onboardingCompleted: normalizeBooleanSetting(settings?.onboardingCompleted, DEFAULT_SETTINGS.onboardingCompleted),
     boardPreferences: normalizeBoardPreferences(settings?.boardPreferences),
   };
 }
@@ -10327,7 +10521,7 @@ function getBattlePassProgressState(state) {
 
 function shareMatchRecap(report, profile) {
   const stats = normalizeMatchReport(report, DEFAULT_MATCH_REPORT);
-  const recap = `${profile.username || "Commander"} ${stats.result === "win" ? "won" : "lost"} in Aether-Tactics vs ${stats.opponent}. Captures: ${stats.captured}. Turns: ${stats.turns}. Best coach note: ${(stats.review || [])[0] || "Tempo decides the board."}`;
+  const recap = `${profile.username || "Commander"} ${stats.result === "win" ? "won" : "lost"} in Aether Tactics vs ${stats.opponent}. Captures: ${stats.captured}. Turns: ${stats.turns}. Best coach note: ${(stats.review || [])[0] || "Tempo decides the board."}`;
   navigator.clipboard?.writeText(recap).catch(() => undefined);
   return recap;
 }

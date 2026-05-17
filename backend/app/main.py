@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import database, game, multiplayer
 
 app = FastAPI(
-    title="Dama Sprint API",
+    title="Aether Tactics API",
     version="0.1.0",
-    description="Backend API for Dama Sprint: factions, campaign data, leaderboard, and future auth/database integrations.",
+    description="Backend API for Aether Tactics: factions, campaign data, leaderboard, and future auth/database integrations.",
 )
 
 app.add_middleware(
@@ -32,7 +32,7 @@ app.include_router(multiplayer.router, prefix="/api", tags=["multiplayer"])
 @app.get("/")
 def root():
     return {
-        "name": "Dama Sprint API",
+        "name": "Aether Tactics API",
         "status": "online",
         "docs": "/docs",
     }

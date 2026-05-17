@@ -52,17 +52,19 @@ def normalize_queue_loadout(loadout: Any) -> dict[str, str]:
     }
 
 
-def matchmaking_player_payload(user_id: str, role: str, loadout: dict[str, str]) -> dict[str, Any]:
+def matchmaking_player_payload(user_id: str, role: str, loadout: dict[str, str], profile: dict[str, Any] | None = None, skin_ids: dict[str, Any] | None = None) -> dict[str, Any]:
+    profile = profile or {}
     return {
         "user_id": str(user_id),
         "role": role,
-        "username": "Host" if role == "host" else "Guest",
-        "avatar": "",
-        "city": "Global",
-        "level": 1,
-        "bio": "",
+        "username": profile.get("username") or profile.get("name") or ("Host" if role == "host" else "Guest"),
+        "avatar": profile.get("avatar") or "",
+        "profile_picture_url": profile.get("profile_picture_url") or "",
+        "city": profile.get("city") or "Global",
+        "level": profile.get("level") or 1,
+        "bio": profile.get("bio") or "",
         "loadout": loadout,
-        "skinIds": {},
+        "skinIds": skin_ids or {},
         "ready": True,
         "connected": True,
         "updatedAt": datetime.now(timezone.utc).isoformat(),
@@ -223,6 +225,7 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
         "room_code": code,
         "mode": "private",
         "game_variant": "power",
+        "loadout": normalize_queue_loadout({}),
         "host_user_id": user_id if role == "host" else None,
         "guest_user_id": None,
         "status": "waiting",
@@ -249,7 +252,7 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
     if phase == "match" and room.get("host_user_id") and room.get("guest_user_id") and room.get("status") != "finished":
         room["status"] = "in_match"
         room["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await broadcast(code, {"type": "room_state", "room": room})
+    await broadcast(code, {"type": "room_state", "room": public_room_payload(room)})
     await broadcast_room_updated(code, room)
     if room.get("last_state"):
         await websocket.send_json({"type": "relay", "from": "server", "payload": {"type": "board_state", "state": room["last_state"]}})
@@ -285,9 +288,10 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
                 await finish_room_by_forfeit(code, room, str(user_id), str(payload.get("reason") or "forfeit"))
                 continue
             if payload.get("type") == "sync_request":
+                upsert_lobby_player(room, str(user_id), payload.get("role") or role, payload, connected=True)
                 if payload.get("skinIds"):
                     room.setdefault("player_skin_ids", {})[str(user_id)] = payload.get("skinIds") or {}
-                    await broadcast(code, {"type": "room_state", "room": room})
+                await broadcast(code, {"type": "room_state", "room": public_room_payload(room)})
                 if room.get("last_state"):
                     await websocket.send_json({"type": "relay", "from": "server", "payload": {"type": "board_state", "state": room["last_state"]}})
                 continue
@@ -295,6 +299,11 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
                 state = payload.get("state") or {}
                 if state.get("skinIds"):
                     room.setdefault("player_skin_ids", {})[str(user_id)] = state.get("skinIds") or {}
+                if state.get("loadout"):
+                    upsert_lobby_player(room, str(user_id), payload.get("role") or role, {
+                        "loadout": state.get("loadout"),
+                        "skinIds": state.get("skinIds") or {},
+                    }, connected=True)
                 expected = expected_user_for_turn(room)
                 if payload.get("reason") in {"move", "finish"} and expected and expected != str(user_id):
                     await websocket.send_json({"type": "move_rejected", "reason": "It is not your turn in this room."})
@@ -412,10 +421,16 @@ async def handle_challenge_accept(user_id: str, payload: dict[str, Any]):
     room_code = make_room_code()
     host_id = str(challenge["from_user_id"])
     guest_id = str(challenge["target_user_id"])
+    host_loadout = normalize_queue_loadout(challenge.get("loadout"))
+    guest_loadout = normalize_queue_loadout(payload.get("loadout"))
+    host_skin_ids = challenge.get("skinIds") or {}
+    guest_skin_ids = payload.get("skinIds") or {}
     rooms[room_code] = {
         "room_code": room_code,
         "mode": "private",
         "game_variant": "power",
+        "loadout": host_loadout,
+        "guest_loadout": guest_loadout,
         "host_user_id": host_id,
         "guest_user_id": guest_id,
         "status": "ready",
@@ -424,8 +439,12 @@ async def handle_challenge_accept(user_id: str, payload: dict[str, Any]):
         "players": [host_id, guest_id],
         "challenge_id": challenge_id,
         "player_skin_ids": {
-            host_id: challenge.get("skinIds") or {},
-            guest_id: payload.get("skinIds") or {},
+            host_id: host_skin_ids,
+            guest_id: guest_skin_ids,
+        },
+        "lobby_players": {
+            "host": matchmaking_player_payload(host_id, "host", host_loadout, challenge.get("from_profile") or {}, host_skin_ids),
+            "guest": matchmaking_player_payload(guest_id, "guest", guest_loadout, payload.get("target_profile") or challenge.get("target_profile") or {}, guest_skin_ids),
         },
     }
     start_payload = {
@@ -458,12 +477,19 @@ def upsert_lobby_player(room: dict[str, Any], user_id: str, role: str, payload: 
         legacy = players.pop(str(user_id), None)
         previous = legacy or {}
     profile = payload.get("profile") or payload.get("player") or previous
-    loadout = payload.get("loadout") or profile.get("loadout") or previous.get("loadout") or {}
+    loadout = normalize_queue_loadout(payload.get("loadout") or profile.get("loadout") or previous.get("loadout") or {})
     skin_ids = payload.get("skinIds") or payload.get("skin_ids") or profile.get("skinIds") or previous.get("skinIds") or {}
+    variant = payload.get("gameVariant") or payload.get("game_variant")
+    if variant:
+        room["game_variant"] = normalize_game_variant(variant)
     if slot == "host":
         room["host_user_id"] = str(user_id)
+        room["loadout"] = loadout
     elif not room.get("guest_user_id") or room.get("guest_user_id") == str(user_id) or players.get("guest", {}).get("user_id") == str(user_id) or not players.get("guest", {}).get("connected", True):
         room["guest_user_id"] = str(user_id)
+        room["guest_loadout"] = loadout
+    elif slot == "guest":
+        room["guest_loadout"] = loadout
     room.setdefault("player_skin_ids", {})[str(user_id)] = skin_ids
     players[slot] = {
         **previous,
@@ -490,7 +516,7 @@ def upsert_lobby_player(room: dict[str, Any], user_id: str, role: str, payload: 
     guest_ready = players.get("guest", {}).get("ready", False)
     if room.get("guest_user_id") and room.get("status") in {"waiting", "ready"}:
         room["status"] = "configuring"
-    if host_ready and guest_ready and room.get("guest_user_id"):
+    if host_ready and guest_ready and room.get("guest_user_id") and room.get("status") not in {"in_match", "finished"}:
         room["status"] = "starting"
     room["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -506,11 +532,14 @@ def public_room_payload(room: dict[str, Any]) -> dict[str, Any]:
         "room_code": room.get("room_code"),
         "mode": room.get("mode", "private"),
         "game_variant": normalize_game_variant(room.get("game_variant")),
+        "loadout": normalize_queue_loadout(room.get("loadout")),
+        "guest_loadout": normalize_queue_loadout(room.get("guest_loadout")) if room.get("guest_loadout") else None,
         "host_user_id": room.get("host_user_id"),
         "guest_user_id": room.get("guest_user_id"),
         "status": room.get("status"),
         "created_at": room.get("created_at"),
         "updated_at": room.get("updated_at"),
+        "players": room.get("players") or [],
         "player_skin_ids": room.get("player_skin_ids") or {},
         "lobby_players": room.get("lobby_players") or {},
         "forfeit": room.get("forfeit"),
@@ -637,9 +666,14 @@ def expected_user_for_turn(room: dict[str, Any]) -> str | None:
 def validate_move_payload(room: dict[str, Any], user_id: str, payload: dict[str, Any]) -> bool:
     previous = room.get("last_state")
     state = payload.get("state") or {}
-    if not previous or not previous.get("board"):
-        return True
     action_type = get_action_type(payload)
+    if not previous or not previous.get("board"):
+        if normalize_game_variant(room.get("game_variant")) != "power":
+            replay = state.get("moveReplay") or []
+            move = replay[-1] if replay else None
+            if action_type == "ability_cast" or (move and (move.get("powerId") or move.get("passiveId"))):
+                return False
+        return True
     previous_replay = previous.get("moveReplay") or []
     replay = state.get("moveReplay") or []
     if normalize_game_variant(room.get("game_variant")) != "power":

@@ -5,7 +5,7 @@ FILES = "abcdefgh"
 BOARD_SIZE = 8
 CENTER_SQUARES = {"d4", "e4", "d5", "e5"}
 COACH_SYSTEM_PROMPT = (
-    "You are an expert Checkers coach for Aether-Tactics. Analyze only the supplied board state, "
+    "You are an expert Checkers coach for Aether Tactics. Analyze only the supplied board state, "
     "replay, recent moves, mode, result, and loadout. Give concise tactical advice about forced "
     "captures, multi-jumps, center control, promotion lanes, king activity, piece safety, and faction "
     "abilities. Do not invent moves that are not supported by the supplied context. Prefer concrete "

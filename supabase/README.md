@@ -1,6 +1,6 @@
 # Supabase Setup
 
-This folder contains the production database foundation for Dama Sprint.
+This folder contains the production database foundation for Aether Tactics.
 
 ## 1. Create Project
 

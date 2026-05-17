@@ -34,6 +34,35 @@ let audioContext = null;
 let musicAudio = null;
 let musicTrackId = "";
 
+function booleanSetting(value, fallback) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "false") {
+      return false;
+    }
+    if (value.toLowerCase() === "true") {
+      return true;
+    }
+  }
+  return Boolean(value ?? fallback);
+}
+
+function normalizeAudioSettings(nextSettings = {}) {
+  const merged = { ...DEFAULT_AUDIO_SETTINGS, ...(nextSettings || {}) };
+  return {
+    ...merged,
+    masterVolume: clamp(merged.masterVolume),
+    musicVolume: clamp(merged.musicVolume),
+    sfxVolume: clamp(merged.sfxVolume),
+    voiceVolume: clamp(merged.voiceVolume),
+    musicEnabled: booleanSetting(merged.musicEnabled, DEFAULT_AUDIO_SETTINGS.musicEnabled),
+    sfxEnabled: booleanSetting(merged.sfxEnabled, DEFAULT_AUDIO_SETTINGS.sfxEnabled),
+    voiceEnabled: booleanSetting(merged.voiceEnabled, DEFAULT_AUDIO_SETTINGS.voiceEnabled),
+  };
+}
+
 function getContext() {
   if (!audioContext) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -72,7 +101,7 @@ function selectedMusicTrack() {
 
 function applyMusicVolume() {
   if (musicAudio) {
-    musicAudio.volume = Math.min(0.72, volume("music") * 0.55);
+    musicAudio.volume = Math.min(1, volume("music"));
   }
 }
 
@@ -93,14 +122,20 @@ function ensureMusic() {
 }
 
 export function configureAudio(nextSettings = {}) {
-  settings = { ...DEFAULT_AUDIO_SETTINGS, ...(nextSettings || {}) };
+  settings = normalizeAudioSettings(nextSettings);
   if (!settings.musicEnabled || volume("music") <= 0) {
     stopMusic();
-  } else if (musicAudio && musicTrackId === selectedMusicTrack().id) {
-    applyMusicVolume();
-  } else {
-    stopMusic();
+    return;
   }
+  if (musicAudio && musicTrackId === selectedMusicTrack().id) {
+    applyMusicVolume();
+    if (musicAudio.paused) {
+      musicAudio.play().catch(() => undefined);
+    }
+    return;
+  }
+  stopMusic();
+  ensureMusic();
 }
 
 export function playSound(name) {

@@ -1,6 +1,6 @@
-# Aether-Tactics: Dama Sprint
+# Aether Tactics
 
-Aether-Tactics is a full-stack checkers tactics game built for the nFactorial Checkers task. It starts from classic draughts, then layers in faction powers, AI coaching, 2D/3D cosmetics, multiplayer rooms, progression, a Vault economy, music, achievements, and a Founder Battle Pass.
+Aether Tactics is a full-stack checkers tactics game built for the nFactorial Checkers task. It starts from classic draughts, then layers in faction powers, AI coaching, 2D/3D cosmetics, multiplayer rooms, progression, a Vault economy, music, achievements, and a Founder Battle Pass.
 
 The important idea: this is not only a playable board. It is a product prototype around checkers, with the systems a real live game needs: identity, rewards, retention, social play, content, and admin/demo visibility.
 
@@ -363,6 +363,7 @@ Important variables:
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_ANON_KEY=your-anon-key
+FRONTEND_ORIGIN=http://localhost:5173
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_API_URL=http://localhost:8000
@@ -422,7 +423,14 @@ Admin demo grants:
 - Every Vault cosmetic.
 - Pro active.
 
-Use this for judging and QA. For production, set `VITE_SHOW_ADMIN_DEMO=false`.
+Use this for judging and QA. For a public production build, set `VITE_SHOW_ADMIN_DEMO=false`.
+
+### Judge Account
+
+The submitted build should include both access paths:
+
+- **Admin Demo Access:** keep `VITE_SHOW_ADMIN_DEMO=true` on Vercel so judges can immediately inspect every faction, reward, cosmetic, and admin/demo surface.
+- **Seeded Supabase account:** create one real Supabase Auth user before submission, sign in once, create its profile, and include the email/password only in the private submission notes. Do not commit credentials to this repository.
 
 ## Suggested Judge Demo
 
@@ -529,17 +537,46 @@ Multiplayer:
 
 ## Deployment Links
 
-- Frontend: _add Vercel/Netlify URL here_
-- Backend API: _add Render/Railway/Fly.io URL here_
-- GitHub Repository: _add repository URL here_
+- Frontend (Vercel): add the final Vercel URL in the submission form and private notes.
+- Backend API (Render): add the final Render service URL in the submission form and private notes.
+- GitHub Repository: add the public repository URL in the submission form.
+
+## Deployment Settings
+
+### Vercel Frontend
+
+- Root directory: `frontend`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Required environment variables:
+  - `VITE_API_URL=https://<render-api-url>`
+  - `VITE_SUPABASE_URL=https://<your-project>.supabase.co`
+  - `VITE_SUPABASE_ANON_KEY=<anon-key>`
+  - `VITE_SHOW_ADMIN_DEMO=true`
+
+### Render Backend
+
+Use `render.yaml` or configure manually:
+
+- Root directory: `backend`
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Required environment variables:
+  - `SUPABASE_URL=https://<your-project>.supabase.co`
+  - `SUPABASE_SERVICE_ROLE_KEY=<service-role-key>`
+  - `FRONTEND_ORIGIN=https://<vercel-app-url>`
+
+Never expose `SUPABASE_SERVICE_ROLE_KEY` in Vercel or frontend code.
 
 ## Submission Checklist
 
 - Run `supabase/schema.sql` and `supabase/seed.sql`.
+- Create the seeded judge Supabase Auth user and profile.
 - Add production env vars for frontend and backend.
 - Deploy frontend and backend.
-- Update the links above.
-- Set `VITE_SHOW_ADMIN_DEMO=true` for the judge build or provide a seeded judge account.
+- Add frontend, backend, repository, and judge account details to the private submission notes.
+- Set `VITE_SHOW_ADMIN_DEMO=true` for the judge build and provide the seeded judge account privately.
+- Verify `GET /api/health`, `GET /api/database/health`, and `/docs` on the deployed backend.
 - Verify signup/login, AI match rewards, campaign progress, Vault purchase/equip, Battle Pass progress, Daily Tactic, leaderboard filters, and a two-tab private multiplayer room.
 - Add the screenshots listed above, especially Meshy AI, Supabase tables/RPCs/RLS, FastAPI docs, 3D/2D skins, and multiplayer skin visibility.
 

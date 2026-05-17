@@ -435,7 +435,7 @@ def invite_friend(friend_id: str, invite: FriendInviteCreate, request: Request):
             "user_id": friend_id,
             "type": "duel_invite",
             "title": "Duel invite",
-            "body": "A friend invited you to a private Aether-Tactics lobby.",
+            "body": "A friend invited you to a private Aether Tactics lobby.",
             "metadata": {"from_user_id": user_id, "room_code": invite.room_code},
         }).execute()
     except HTTPException:

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Aether Tactics logo</title>
+  <desc id="desc">A luminous AT monogram over a tactical board diamond.</desc>
+  <defs>
+    <linearGradient id="bg" x1="32" y1="24" x2="220" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#172339"/>
+      <stop offset="0.54" stop-color="#0a0d18"/>
+      <stop offset="1" stop-color="#27133f"/>
+    </linearGradient>
+    <linearGradient id="aether" x1="54" y1="44" x2="202" y2="214" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7df7ff"/>
+      <stop offset="0.52" stop-color="#ffcf5c"/>
+      <stop offset="1" stop-color="#b18cff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.49 0 0 0 0 0.96 0 0 0 0 1 0 0 0 0.55 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <path d="M42 130 128 42l86 88-86 84-86-84Z" fill="#111827" stroke="url(#aether)" stroke-width="8"/>
+  <path d="M75 130h106M128 76v106M84 89l88 86M172 88l-88 86" stroke="#ffffff" stroke-opacity=".16" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="128" cy="128" r="72" fill="none" stroke="#7df7ff" stroke-opacity=".22" stroke-width="4"/>
+  <circle cx="128" cy="128" r="94" fill="none" stroke="#ffcf5c" stroke-opacity=".18" stroke-width="3" stroke-dasharray="16 13"/>
+  <path d="M70 166 108 82h18l38 84h-22l-7-17H99l-7 17H70Zm36-36h22l-11-27-11 27Z" fill="url(#aether)" filter="url(#glow)"/>
+  <path d="M150 102V82h68v20h-24v64h-20v-64h-24Z" fill="#f9fbff" filter="url(#glow)"/>
+  <path d="M50 56h26M180 200h28M198 58l10 10M50 198l10-10" stroke="#ffcf5c" stroke-width="7" stroke-linecap="round"/>
+</svg>

@@ -1626,7 +1626,7 @@ function finishPuzzle() {
   updatePuzzleStreak();
   state.recap = {
     result: "Solved",
-    summary: `${profile.name} solved today's ${DAILY_PUZZLE.title} in Dama Sprint.`,
+    summary: `${profile.name} solved today's ${DAILY_PUZZLE.title} in Aether Tactics.`,
   };
 }
 
@@ -2485,7 +2485,7 @@ function buildShareText() {
     return "";
   }
 
-  return `${profile.name} from ${profile.city} played Dama Sprint. ${state.recap.summary}`;
+  return `${profile.name} from ${profile.city} played Aether Tactics. ${state.recap.summary}`;
 }
 
 function createMoveRecord(move, piece, promoted, actor) {

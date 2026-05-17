@@ -1426,6 +1426,7 @@ export function App() {
   const [multiplayerRole, setMultiplayerRole] = useState("host");
   const [multiplayerStatus, setMultiplayerStatus] = useState("Offline");
   const [remoteSkinIds, setRemoteSkinIds] = useState(() => normalizeSkinIds(null));
+  const [remoteLoadout, setRemoteLoadout] = useState(null);
   const [matchChatMessages, setMatchChatMessages] = useState([]);
   const [activeMatchEmotes, setActiveMatchEmotes] = useState([]);
   const [lobbyCode, setLobbyCode] = useState(initialRoute.lobbyCode || "");
@@ -2056,6 +2057,10 @@ export function App() {
             if (roomSkinIds) {
               setRemoteSkinIds(roomSkinIds);
             }
+            const roomRemoteLoadout = loadoutForRemoteLobbyPlayer(messageData.room?.lobby_players, activeUserId, factions);
+            if (roomRemoteLoadout) {
+              setRemoteLoadout(roomRemoteLoadout);
+            }
             if (messageData.room?.forfeit) {
               handleMultiplayerForfeit(messageData.room.forfeit);
               return;
@@ -2207,7 +2212,7 @@ export function App() {
       requireAuth("Campaigns, puzzles, local progression, and multiplayer");
       return;
     }
-    const requestedVariant = options.variant || (nextMode === "ai" ? gameVariant : "power");
+    const requestedVariant = normalizeGameVariant(options.variant || (nextMode === "ai" ? gameVariant : "power"));
     if (!isAuthenticated && requestedVariant === "power") {
       requireAuth("Power Checkers");
     }
@@ -2230,8 +2235,12 @@ export function App() {
       setMultiplayerRoom(null);
       setMultiplayerStatus("Offline");
       setRemoteSkinIds(normalizeSkinIds(null));
-    } else if (options.remoteSkinIds) {
-      setRemoteSkinIds(normalizeSkinIds(options.remoteSkinIds));
+      setRemoteLoadout(null);
+    } else {
+      if (options.remoteSkinIds) {
+        setRemoteSkinIds(normalizeSkinIds(options.remoteSkinIds));
+      }
+      setRemoteLoadout(options.remoteLoadout || null);
     }
     setPendingMatchSetup(null);
     matchForfeitHandledRef.current = false;
@@ -2367,16 +2376,27 @@ export function App() {
       addNotification("Room error", "No room code was generated.", "warning");
       return;
     }
-    const opponentSkinIds = normalizeSkinIds(typeof room === "object" ? room.opponent_profile?.skinIds || room.opponent_profile?.skin_ids || room.opponent_skin_ids : null);
-    setMultiplayerRoom({ ...(typeof room === "object" ? room : {}), room_code: roomCode });
+    const roomPayload = typeof room === "object" ? room : {};
+    const nextVariant = normalizeGameVariant(options.variant || roomPayload.game_variant || roomPayload.gameVariant || gameVariant);
+    const queuedPlayers = roomPayload.lobby_players || roomPayload.lobbyPlayers || {};
+    const localSlot = role === "guest" ? "guest" : "host";
+    const remoteSlot = localSlot === "host" ? "guest" : "host";
+    const localQueuePlayer = queuedPlayers[localSlot] || null;
+    const remoteQueuePlayer = queuedPlayers[remoteSlot] || null;
+    const localLoadout = normalizeLobbyLoadout(localQueuePlayer?.loadout || roomPayload.loadout || loadout, factions);
+    const opponentProfile = roomPayload.opponent_profile || roomPayload.opponentProfile || remoteQueuePlayer || null;
+    const opponentLoadout = hasExplicitLoadout(opponentProfile?.loadout) ? normalizeLobbyLoadout(opponentProfile.loadout, factions) : null;
+    const opponentSkinIds = normalizeSkinIds(opponentProfile?.skinIds || opponentProfile?.skin_ids || roomPayload.opponent_skin_ids);
+    setMultiplayerRoom({ ...roomPayload, room_code: roomCode, game_variant: nextVariant });
     setMultiplayerRole(role);
+    setRemoteLoadout(opponentLoadout);
     setMatchChatMessages([]);
     setActiveMatchEmotes([]);
-    startMatch("multiplayer", campaignLevel, { variant: "power", loadout: room?.loadout || loadout, remoteSkinIds: opponentSkinIds });
-    setVersusMatchup(createVersusMatchup(profile, typeof room === "object" ? room.opponent_profile : null, role, roomCode, loadout, factions));
+    startMatch("multiplayer", campaignLevel, { variant: nextVariant, loadout: localLoadout, remoteLoadout: opponentLoadout, remoteSkinIds: opponentSkinIds });
+    setVersusMatchup(createVersusMatchup(profile, opponentProfile, role, roomCode, localLoadout, factions, opponentLoadout));
     playSound("joined");
     speakLine(role === "host" ? "Private lobby ready." : "Opponent joined.");
-    setMessage(`${role === "host" ? "Hosting" : "Joined"} private room ${roomCode}.`);
+    setMessage(`${role === "host" ? "Hosting" : "Joined"} ${queueVariantLabel(nextVariant).toLowerCase()} room ${roomCode}.`);
     setView(options.directToGame ? "game" : "versus-intro");
   }
 
@@ -2712,6 +2732,9 @@ export function App() {
     if (state.skinIds) {
       setRemoteSkinIds(normalizeSkinIds(state.skinIds));
     }
+    if (hasExplicitLoadout(state.loadout)) {
+      setRemoteLoadout(normalizeLobbyLoadout(state.loadout, factions));
+    }
     setBoard(state.board);
     setTurn(state.turn || "white");
     setMoveLog(state.moveLog || []);
@@ -2720,7 +2743,6 @@ export function App() {
     setProtectedSquares(state.protectedSquares || []);
     setWinner(state.winner || null);
     setResultLabel(state.resultLabel || null);
-    setLoadout(state.loadout || loadout);
     setGameVariant(state.gameVariant || gameVariant);
     setMessage(state.message || "Remote move synchronized.");
     setSelected(null);
@@ -4956,9 +4978,14 @@ export function App() {
           friendsData={friendsData}
           playerSearchResults={playerSearchResults}
           profile={profile}
+          factions={factions}
+          loadout={loadout}
+          gameVariant={gameVariant}
           userId={activeUserId}
           leaderboard={leaderboard}
           leaderboardCity={leaderboardCity}
+          onLoadout={setLoadout}
+          onGameVariant={(variant) => setGameVariant(normalizeGameVariant(variant))}
           onNavigate={routeFromNexus}
           onHome={() => setView("nexus")}
           onProfile={() => setView("settings")}
@@ -5024,6 +5051,7 @@ export function App() {
           markedPiece={markedPiece}
           message={message}
           mode={mode}
+          opponentLoadout={remoteLoadout}
           opponentProfile={versusMatchup?.opponent}
           activeEmotes={activeMatchEmotes}
           boardViewMode={boardViewMode}
@@ -7211,6 +7239,7 @@ function BattlefieldMatch({
   mode,
   multiplayerRole,
   multiplayerStatus,
+  opponentLoadout,
   opponentProfile,
   playerProfile,
   momentum,
@@ -7252,7 +7281,10 @@ function BattlefieldMatch({
   const playerName = playerProfile?.username || playerProfile?.name || "Commander";
   const boardPerspective = getLocalPlayerColor(mode, multiplayerRole);
   const persona = getCurrentAiPersonality(mode, aiLevel, campaignLevel);
-  const opponentMeta = mode === "campaign" ? `${campaignLevel?.name || "Faction Trial"} // ${getAiPersonalityLabel(persona)}` : mode === "puzzle" ? `Daily challenge // ${getAiPersonalityLabel(persona)}` : mode === "multiplayer" ? `${multiplayerStatus} // ${opponentProfile?.city || "Unknown sector"}` : `${gameVariant === "classic" ? "Classic" : "Power"} simulation // ${getAiPersonalityLabel(persona)}`;
+  const opponentPowerMeta = opponentLoadout?.passiveId
+    ? `${abilityLabel(opponentLoadout.passiveId)} / ${abilityLabel(opponentLoadout.ultimateId)}`
+    : opponentProfile?.city || "Unknown sector";
+  const opponentMeta = mode === "campaign" ? `${campaignLevel?.name || "Faction Trial"} // ${getAiPersonalityLabel(persona)}` : mode === "puzzle" ? `Daily challenge // ${getAiPersonalityLabel(persona)}` : mode === "multiplayer" ? `${multiplayerStatus} // ${opponentPowerMeta}` : `${gameVariant === "classic" ? "Classic" : "Power"} simulation // ${getAiPersonalityLabel(persona)}`;
   const opponentArtProfile = mode === "campaign" ? "campaign" : mode === "puzzle" ? "puzzle" : aiProfileId || aiLevel;
   const logEntries = moveLog.length
     ? moveLog.map((entry, index) => `[${String(12 + Math.floor(index / 3)).padStart(2, "0")}:${String(45 + ((index * 2) % 15)).padStart(2, "0")}] ${entry}`)
@@ -8049,7 +8081,7 @@ function LobbyPlayerCard({ title, player, active }) {
   );
 }
 
-function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, playerSearchResults, profile, userId, leaderboard, leaderboardCity, onNavigate, onHome, onProfile, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
+function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, playerSearchResults, profile, factions = [], loadout = DEFAULT_LOADOUT, gameVariant = "power", userId, leaderboard, leaderboardCity, onLoadout, onGameVariant, onNavigate, onHome, onProfile, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
   const nowPlaying = musicTrackTitle(profile.settings?.musicTrack);
   return (
     <main className="ops-shell">
@@ -8066,7 +8098,7 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
           <button className="nexus-avatar" aria-label="Profile" onClick={onProfile}>{(profile.username || "P").slice(0, 1)}</button>
         </div>
       </header>
-      <MultiplayerOperations isAuthenticated={isAuthenticated} friendsData={friendsData} playerSearchResults={playerSearchResults} userId={userId} leaderboard={leaderboard} leaderboardCity={leaderboardCity} onNotify={onNotify} onStartRoom={onStartRoom} onHostLobby={onHostLobby} onJoinLobby={onJoinLobby} onSearchPlayers={onSearchPlayers} onRequestFriend={onRequestFriend} onOpenPublicProfile={onOpenPublicProfile} onInviteFriend={onInviteFriend} onRespondRequest={onRespondRequest} onLeaderboardCity={onLeaderboardCity} />
+      <MultiplayerOperations isAuthenticated={isAuthenticated} friendsData={friendsData} playerSearchResults={playerSearchResults} profile={profile} factions={factions} loadout={loadout} gameVariant={gameVariant} userId={userId} leaderboard={leaderboard} leaderboardCity={leaderboardCity} onLoadout={onLoadout} onGameVariant={onGameVariant} onNotify={onNotify} onStartRoom={onStartRoom} onHostLobby={onHostLobby} onJoinLobby={onJoinLobby} onSearchPlayers={onSearchPlayers} onRequestFriend={onRequestFriend} onOpenPublicProfile={onOpenPublicProfile} onInviteFriend={onInviteFriend} onRespondRequest={onRespondRequest} onLeaderboardCity={onLeaderboardCity} />
       <footer className="nexus-footer">
         <span><i />EU servers: stable</span>
         <span>Season 4: 12 days left</span>
@@ -9869,8 +9901,9 @@ function factionUnlockText(faction = {}) {
   return level ? `Level ${level}` : faction.unlock_label || "Locked";
 }
 
-function createVersusMatchup(playerProfile, opponentProfile, role, roomCode, loadout, factions) {
+function createVersusMatchup(playerProfile, opponentProfile, role, roomCode, loadout, factions, opponentLoadout = null) {
   const faction = factions.find((item) => item.id === loadout?.factionId);
+  const opponentFaction = factions.find((item) => item.id === opponentLoadout?.factionId);
   return {
     role,
     roomCode,
@@ -9878,13 +9911,17 @@ function createVersusMatchup(playerProfile, opponentProfile, role, roomCode, loa
       ...playerProfile,
       favorite_faction: faction?.name || loadout?.factionId || "nomads",
     }),
-    opponent: normalizePublicProfile(opponentProfile || {
+    opponent: normalizePublicProfile(opponentProfile ? {
+      ...opponentProfile,
+      favorite_faction: opponentProfile.favorite_faction || opponentFaction?.name || opponentLoadout?.factionId || opponentProfile.faction,
+    } : {
       username: role === "host" ? "Awaiting_Rival" : "Room_Host",
       avatar: role === "host" ? "AR" : "RH",
       city: "Unknown sector",
       bio: "Opponent intel will resolve when the commander joins.",
       pvp_stats: { mmr_elo_rating: 1000 },
       threat: "Unknown",
+      favorite_faction: opponentFaction?.name || opponentLoadout?.factionId || "unknown",
     }),
   };
 }
@@ -9962,6 +9999,8 @@ function lobbyStateFromRoomUpdate(payload = {}, current = null, fallbackCode = "
 
 function lobbyPlayerFromServer(player = {}, factions = []) {
   const username = player.username || player.name || "Commander";
+  const loadout = normalizeLobbyLoadout(player.loadout || DEFAULT_LOADOUT, factions);
+  const faction = factions.find((item) => item.id === loadout.factionId);
   return {
     user_id: player.user_id,
     username,
@@ -9970,7 +10009,8 @@ function lobbyPlayerFromServer(player = {}, factions = []) {
     city: player.city || "Global",
     level: Number(player.level || 1),
     bio: player.bio || "",
-    loadout: normalizeLobbyLoadout(player.loadout || DEFAULT_LOADOUT, factions),
+    favorite_faction: player.favorite_faction || faction?.name || loadout.factionId,
+    loadout,
     skinIds: normalizeSkinIds(player.skinIds || player.skin_ids || {}),
     ready: Boolean(player.ready),
     connected: Boolean(player.connected),
@@ -10006,6 +10046,7 @@ function createLobbyState(code, role, player) {
 
 function createLobbyPlayer(profile, userId, loadout, factions = [], skinIds = {}) {
   const safeLoadout = normalizeLobbyLoadout(loadout, factions);
+  const faction = factions.find((item) => item.id === safeLoadout.factionId);
   return {
     user_id: userId,
     username: profile.username || profile.name || "Commander",
@@ -10014,6 +10055,7 @@ function createLobbyPlayer(profile, userId, loadout, factions = [], skinIds = {}
     city: profile.city || "Global",
     level: profile.level || 1,
     bio: profile.bio || "",
+    favorite_faction: faction?.name || safeLoadout.factionId,
     loadout: safeLoadout,
     skinIds: normalizeSkinIds(skinIds),
     ready: false,
@@ -10032,6 +10074,23 @@ function normalizeLobbyLoadout(loadout, factions = []) {
     passiveId: faction.passives?.some((item) => item.id === loadout?.passiveId) ? loadout.passiveId : faction.passives?.[0]?.id || "open_roads",
     ultimateId: faction.ultimates?.some((item) => item.id === loadout?.ultimateId) ? loadout.ultimateId : faction.ultimates?.[0]?.id || "dash",
   };
+}
+
+function hasExplicitLoadout(loadout) {
+  return Boolean(loadout?.factionId || loadout?.passiveId || loadout?.ultimateId);
+}
+
+function normalizeGameVariant(value = "power") {
+  const normalized = String(value || "power").toLowerCase();
+  return ["basic", "classic", "standard"].includes(normalized) ? "classic" : "power";
+}
+
+function isPowerVariant(value = "power") {
+  return normalizeGameVariant(value) === "power";
+}
+
+function queueVariantLabel(value = "power") {
+  return isPowerVariant(value) ? "Powers" : "Basic";
 }
 
 function normalizeQuests(quests = []) {
@@ -11353,6 +11412,12 @@ function skinIdsForRemotePlayer(playerSkinIds = {}, activeUserId = "") {
   const entries = Object.entries(playerSkinIds || {});
   const remote = entries.find(([userId]) => String(userId) !== String(activeUserId));
   return remote ? normalizeSkinIds(remote[1]) : null;
+}
+
+function loadoutForRemoteLobbyPlayer(lobbyPlayers = {}, activeUserId = "", factions = []) {
+  const players = Array.isArray(lobbyPlayers) ? lobbyPlayers : Object.values(lobbyPlayers || {});
+  const remote = players.find((player) => player && String(player.user_id) !== String(activeUserId));
+  return hasExplicitLoadout(remote?.loadout) ? normalizeLobbyLoadout(remote.loadout, factions) : null;
 }
 
 function buildMatchCosmetics({ localCosmetics = {}, remoteSkinIds = {}, mode = "ai", multiplayerRole = "host", catalog = [], viewMode = "3d" } = {}) {

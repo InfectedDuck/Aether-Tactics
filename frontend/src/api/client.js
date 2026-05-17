@@ -409,10 +409,10 @@ export async function getLiveLeaderboard(city = "Global", limit = 10) {
   return apiJson(`/api/leaderboard/live?city=${encodeURIComponent(city)}&limit=${encodeURIComponent(limit)}`);
 }
 
-export async function createMultiplayerRoom({ userId, mode = "private" }) {
+export async function createMultiplayerRoom({ userId, mode = "private", gameVariant = "power", loadout = {} }) {
   return apiJson("/api/multiplayer/rooms", {
     method: "POST",
-    body: JSON.stringify({ user_id: userId, mode }),
+    body: JSON.stringify({ user_id: userId, mode, game_variant: gameVariant, loadout }),
   });
 }
 
@@ -420,10 +420,10 @@ export async function getMultiplayerRoom(roomCode) {
   return apiJson(`/api/multiplayer/rooms/${encodeURIComponent(roomCode)}`);
 }
 
-export async function joinMultiplayerQueue({ userId, mode = "fast" }) {
+export async function joinMultiplayerQueue({ userId, mode = "fast", gameVariant = "power", loadout = {} }) {
   return apiJson(`/api/multiplayer/queue/${encodeURIComponent(mode)}`, {
     method: "POST",
-    body: JSON.stringify({ user_id: userId, mode }),
+    body: JSON.stringify({ user_id: userId, mode, game_variant: gameVariant, loadout }),
   });
 }
 

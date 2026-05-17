@@ -177,6 +177,8 @@ class CampaignProgressUpsert(BaseModel):
 class MultiplayerRoomCreate(BaseModel):
     user_id: UUID | str
     mode: str = Field(default="private", max_length=24)
+    game_variant: str = Field(default="power", max_length=24)
+    loadout: dict[str, Any] = Field(default_factory=dict)
 
 
 class FriendRequestCreate(BaseModel):

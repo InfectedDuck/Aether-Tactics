@@ -37,18 +37,57 @@ def make_room_code() -> str:
             return code
 
 
+def normalize_game_variant(value: str | None = "power") -> str:
+    normalized = str(value or "power").strip().lower()
+    return "classic" if normalized in {"basic", "classic", "standard"} else "power"
+
+
+def normalize_queue_loadout(loadout: Any) -> dict[str, str]:
+    if not isinstance(loadout, dict):
+        loadout = {}
+    return {
+        "factionId": str(loadout.get("factionId") or loadout.get("faction_id") or "nomads"),
+        "passiveId": str(loadout.get("passiveId") or loadout.get("passive_id") or "open_roads"),
+        "ultimateId": str(loadout.get("ultimateId") or loadout.get("ultimate_id") or "dash"),
+    }
+
+
+def matchmaking_player_payload(user_id: str, role: str, loadout: dict[str, str]) -> dict[str, Any]:
+    return {
+        "user_id": str(user_id),
+        "role": role,
+        "username": "Host" if role == "host" else "Guest",
+        "avatar": "",
+        "city": "Global",
+        "level": 1,
+        "bio": "",
+        "loadout": loadout,
+        "skinIds": {},
+        "ready": True,
+        "connected": True,
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.post("/multiplayer/rooms")
 def create_room(room_request: MultiplayerRoomCreate, request: Request):
     user_id = resolve_multiplayer_user_id(request, str(room_request.user_id))
     room_code = make_room_code()
+    game_variant = normalize_game_variant(room_request.game_variant)
+    loadout = normalize_queue_loadout(room_request.loadout)
     rooms[room_code] = {
         "room_code": room_code,
         "mode": room_request.mode,
+        "game_variant": game_variant,
+        "loadout": loadout,
         "host_user_id": user_id,
         "guest_user_id": None,
         "status": "waiting",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "last_state": None,
+        "lobby_players": {
+            "host": matchmaking_player_payload(user_id, "host", loadout),
+        },
     }
     return {"room": rooms[room_code]}
 
@@ -65,12 +104,15 @@ def get_room(room_code: str):
 def join_queue(queue_mode: str, room_request: MultiplayerRoomCreate, request: Request):
     mode = queue_mode if queue_mode in queues else "fast"
     user_id = resolve_multiplayer_user_id(request, str(room_request.user_id))
+    game_variant = normalize_game_variant(room_request.game_variant)
+    loadout = normalize_queue_loadout(room_request.loadout)
     previous_ticket = matchmaking_tickets.get(user_id)
     if previous_ticket and previous_ticket.get("status") == "matched":
         room = rooms.get(previous_ticket.get("room_code", ""))
         if room:
             return {"status": "matched", "role": previous_ticket.get("role", "host"), "ticket": previous_ticket, "room": room}
     queues[mode] = [ticket for ticket in queues[mode] if ticket["user_id"] != user_id and matchmaking_tickets.get(ticket["user_id"], {}).get("status") == "searching"]
+    deferred: list[dict[str, Any]] = []
     while queues[mode]:
         opponent = queues[mode].pop(0)
         if opponent["user_id"] == user_id:
@@ -78,30 +120,48 @@ def join_queue(queue_mode: str, room_request: MultiplayerRoomCreate, request: Re
         opponent_ticket = matchmaking_tickets.get(opponent["user_id"])
         if not opponent_ticket or opponent_ticket.get("status") != "searching":
             continue
+        if normalize_game_variant(opponent_ticket.get("game_variant")) != game_variant:
+            deferred.append(opponent)
+            continue
         room_code = opponent["room_code"]
         room = rooms.get(room_code)
         if not room or room.get("status") not in {"waiting", "searching"}:
             continue
+        queues[mode] = deferred + queues[mode]
+        opponent_loadout = normalize_queue_loadout(opponent_ticket.get("loadout") or opponent.get("loadout"))
         room["guest_user_id"] = user_id
         room["status"] = "ready"
         room["players"] = [opponent["user_id"], user_id]
+        room["game_variant"] = game_variant
+        room["loadout"] = opponent_loadout
+        room["guest_loadout"] = loadout
+        room["lobby_players"] = {
+            "host": matchmaking_player_payload(opponent["user_id"], "host", opponent_loadout),
+            "guest": matchmaking_player_payload(user_id, "guest", loadout),
+        }
         room["updated_at"] = datetime.now(timezone.utc).isoformat()
-        opponent_ticket.update({"status": "matched", "role": "host", "room_code": room_code, "matched_user_id": user_id, "matched_at": room["updated_at"]})
-        guest_ticket = {"user_id": user_id, "mode": mode, "room_code": room_code, "status": "matched", "role": "guest", "matched_user_id": opponent["user_id"], "queued_at": datetime.now(timezone.utc).isoformat(), "matched_at": room["updated_at"]}
+        opponent_ticket.update({"status": "matched", "role": "host", "room_code": room_code, "matched_user_id": user_id, "matched_at": room["updated_at"], "game_variant": game_variant, "loadout": opponent_loadout})
+        guest_ticket = {"user_id": user_id, "mode": mode, "game_variant": game_variant, "loadout": loadout, "room_code": room_code, "status": "matched", "role": "guest", "matched_user_id": opponent["user_id"], "queued_at": datetime.now(timezone.utc).isoformat(), "matched_at": room["updated_at"]}
         matchmaking_tickets[user_id] = guest_ticket
         return {"status": "matched", "role": "guest", "ticket": guest_ticket, "room": room}
+    queues[mode] = deferred + queues[mode]
     room_code = make_room_code()
     rooms[room_code] = {
         "room_code": room_code,
         "mode": mode,
+        "game_variant": game_variant,
+        "loadout": loadout,
         "host_user_id": user_id,
         "guest_user_id": None,
         "status": "searching",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "last_state": None,
         "players": [user_id],
+        "lobby_players": {
+            "host": matchmaking_player_payload(user_id, "host", loadout),
+        },
     }
-    ticket = {"user_id": user_id, "mode": mode, "room_code": room_code, "status": "searching", "role": "host", "queued_at": datetime.now(timezone.utc).isoformat()}
+    ticket = {"user_id": user_id, "mode": mode, "game_variant": game_variant, "loadout": loadout, "room_code": room_code, "status": "searching", "role": "host", "queued_at": datetime.now(timezone.utc).isoformat()}
     matchmaking_tickets[user_id] = ticket
     queues[mode].append(ticket)
     return {"status": "searching", "role": "host", "ticket": ticket, "room": rooms[room_code]}
@@ -162,6 +222,7 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
     room = rooms.setdefault(code, {
         "room_code": code,
         "mode": "private",
+        "game_variant": "power",
         "host_user_id": user_id if role == "host" else None,
         "guest_user_id": None,
         "status": "waiting",
@@ -354,6 +415,7 @@ async def handle_challenge_accept(user_id: str, payload: dict[str, Any]):
     rooms[room_code] = {
         "room_code": room_code,
         "mode": "private",
+        "game_variant": "power",
         "host_user_id": host_id,
         "guest_user_id": guest_id,
         "status": "ready",
@@ -443,12 +505,14 @@ def public_room_payload(room: dict[str, Any]) -> dict[str, Any]:
     return {
         "room_code": room.get("room_code"),
         "mode": room.get("mode", "private"),
+        "game_variant": normalize_game_variant(room.get("game_variant")),
         "host_user_id": room.get("host_user_id"),
         "guest_user_id": room.get("guest_user_id"),
         "status": room.get("status"),
         "created_at": room.get("created_at"),
         "updated_at": room.get("updated_at"),
         "player_skin_ids": room.get("player_skin_ids") or {},
+        "lobby_players": room.get("lobby_players") or {},
         "forfeit": room.get("forfeit"),
     }
 
@@ -576,10 +640,16 @@ def validate_move_payload(room: dict[str, Any], user_id: str, payload: dict[str,
     if not previous or not previous.get("board"):
         return True
     action_type = get_action_type(payload)
+    previous_replay = previous.get("moveReplay") or []
+    replay = state.get("moveReplay") or []
+    if normalize_game_variant(room.get("game_variant")) != "power":
+        if action_type == "ability_cast":
+            return False
+        move = replay[-1] if len(replay) == len(previous_replay) + 1 and replay else None
+        if move and (move.get("powerId") or move.get("passiveId")):
+            return False
     if action_type == "ability_cast":
         return validate_ability_payload(room, user_id, payload)
-    replay = state.get("moveReplay") or []
-    previous_replay = previous.get("moveReplay") or []
     if len(replay) != len(previous_replay) + 1:
         return False
     move = replay[-1]

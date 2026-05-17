@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+dist/
+build/
+frontend/dist/
+frontend/build/
+
+# Local environment files
+.env
+.env.*
+*.local
+!.env.example
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python virtual environments and caches
+.venv/
+venv/
+env/
+backend/.venv/
+backend/.venv312/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local temp/cache directories
+tmp/
+temp/
+.cache/
+.vite/
+frontend/.vite/
+
+# Supabase local runtime files
+supabase/.branches/
+supabase/.temp/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

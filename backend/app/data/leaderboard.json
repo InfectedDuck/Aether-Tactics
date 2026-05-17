@@ -1,0 +1,10 @@
+{
+  "rows": [
+    { "id": "seed-almaty-1", "name": "Aruzhan", "city": "Almaty", "wins": 18, "losses": 5, "captures": 71, "puzzles": 9 },
+    { "id": "seed-almaty-2", "name": "Daniyar", "city": "Almaty", "wins": 13, "losses": 4, "captures": 52, "puzzles": 7 },
+    { "id": "seed-astana-1", "name": "Miras", "city": "Astana", "wins": 16, "losses": 6, "captures": 64, "puzzles": 6 },
+    { "id": "seed-shymkent-1", "name": "Amina", "city": "Shymkent", "wins": 12, "losses": 3, "captures": 45, "puzzles": 8 },
+    { "id": "seed-aktobe-1", "name": "Timur", "city": "Aktobe", "wins": 10, "losses": 5, "captures": 38, "puzzles": 4 },
+    { "id": "seed-karaganda-1", "name": "Dana", "city": "Karaganda", "wins": 11, "losses": 7, "captures": 49, "puzzles": 5 }
+  ]
+}

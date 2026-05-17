@@ -1,0 +1,172 @@
+{
+  "factions": [
+    {
+      "id": "nomads",
+      "name": "Steppe Nomads",
+      "crest": "N",
+      "unlock": "Free",
+      "required_level_to_unlock": 1,
+      "lore": "Win by tempo, escape routes, and sudden board control.",
+      "passives": [
+        {
+          "id": "open_roads",
+          "name": "Open Roads",
+          "icon": "OR",
+          "style": "mobility",
+          "description": "If no capture is available, one normal piece may move one diagonal square backward."
+        },
+        {
+          "id": "dust_veil",
+          "name": "Dust Veil",
+          "icon": "DV",
+          "style": "defense",
+          "description": "After a quiet move, the moved piece blocks the first normal capture against it."
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "dash",
+          "name": "Dash",
+          "icon": "DS",
+          "style": "tempo",
+          "cost": 2,
+          "description": "Move one normal piece exactly two diagonal empty squares. Dash cannot capture."
+        },
+        {
+          "id": "sandstorm_corridor",
+          "name": "Sandstorm",
+          "icon": "SC",
+          "style": "board_control",
+          "cost": 2,
+          "description": "Block two empty dark squares from enemy quiet landings for one enemy turn."
+        }
+      ]
+    },
+    {
+      "id": "iron_guard",
+      "name": "Iron Guard",
+      "crest": "G",
+      "unlock": "Level 2",
+      "required_level_to_unlock": 2,
+      "lore": "Hold the center, survive attacks, and punish overextension.",
+      "passives": [
+        {
+          "id": "shield_wall",
+          "name": "Shield Wall",
+          "icon": "SW",
+          "style": "defense",
+          "description": "The first allied piece that enters a highlighted playable center square becomes guarded for the enemy turn."
+        },
+        {
+          "id": "vengeance_ledger",
+          "name": "Vengeance Ledger",
+          "icon": "VL",
+          "style": "comeback",
+          "description": "After losing a piece, your next capture grants one extra Momentum."
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "fortify",
+          "name": "Fortify",
+          "icon": "FT",
+          "style": "protection",
+          "cost": 2,
+          "description": "Choose one allied piece. For two enemy turns, that piece cannot be captured."
+        },
+        {
+          "id": "barricade",
+          "name": "Barricade",
+          "icon": "BR",
+          "style": "board_control",
+          "cost": 2,
+          "description": "Place two temporary blockers on empty dark squares for one enemy turn."
+        }
+      ]
+    },
+    {
+      "id": "sun_court",
+      "name": "Sun Court",
+      "crest": "S",
+      "unlock": "Level 4",
+      "required_level_to_unlock": 4,
+      "lore": "Race for promotion and turn kings into pressure.",
+      "passives": [
+        {
+          "id": "royal_pressure",
+          "name": "Royal Pressure",
+          "icon": "RP",
+          "style": "promotion",
+          "description": "The first normal piece that enters the enemy final three rows grants Momentum."
+        },
+        {
+          "id": "crown_tax",
+          "name": "Crown Tax",
+          "icon": "CT",
+          "style": "comeback",
+          "description": "The first time the opponent promotes a king, gain two Momentum."
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "crown_surge",
+          "name": "Crown Surge",
+          "icon": "CS",
+          "style": "promotion",
+          "cost": 2,
+          "description": "Promote one normal piece in the middle rows immediately."
+        },
+        {
+          "id": "sun_lance",
+          "name": "Sun Lance",
+          "icon": "SL",
+          "style": "capture",
+          "cost": 2,
+          "description": "One normal piece strikes like a king for a diagonal capture this turn."
+        }
+      ]
+    },
+    {
+      "id": "void_order",
+      "name": "Void Order",
+      "crest": "V",
+      "unlock": "Vault Pass",
+      "required_level_to_unlock": 99,
+      "lore": "Disrupt lanes, mark mistakes, and bend board geometry.",
+      "passives": [
+        {
+          "id": "pressure_field",
+          "name": "Pressure Field",
+          "icon": "PF",
+          "style": "comeback",
+          "description": "Once per match, danger created by the opponent grants Momentum."
+        },
+        {
+          "id": "echo_mark",
+          "name": "Echo Mark",
+          "icon": "EM",
+          "style": "trap",
+          "description": "The first enemy quiet move is marked. Capture it for Momentum."
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "phase_shift",
+          "name": "Phase Shift",
+          "icon": "PS",
+          "style": "reposition",
+          "cost": 2,
+          "description": "Teleport one normal piece up to 3 squares to any empty dark square, ignoring blockers."
+        },
+        {
+          "id": "collapse",
+          "name": "Collapse",
+          "icon": "CL",
+          "style": "board_control",
+          "cost": 2,
+          "description": "Void one empty dark square so no piece may land there for one turn."
+        }
+      ]
+    }
+  ]
+}

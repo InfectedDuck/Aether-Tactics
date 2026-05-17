@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "loadoutRule": {
+    "passivesPerMatch": 1,
+    "ultimatesPerMatch": 1,
+    "ultimateResource": "momentum",
+    "defaultUltimateUses": 1
+  },
+  "momentumRules": [
+    {
+      "id": "lose_two_pieces",
+      "label": "Comeback pressure",
+      "trigger": "player_loses_pieces",
+      "threshold": 2,
+      "gain": 1
+    },
+    {
+      "id": "capture_two_pieces",
+      "label": "Raid pressure",
+      "trigger": "player_captures_pieces",
+      "threshold": 2,
+      "gain": 1
+    },
+    {
+      "id": "promote_king",
+      "label": "Royal breakthrough",
+      "trigger": "player_promotes_piece",
+      "threshold": 1,
+      "gain": 1
+    },
+    {
+      "id": "multi_capture",
+      "label": "Chain attack",
+      "trigger": "player_completes_multi_capture",
+      "threshold": 1,
+      "gain": 1
+    }
+  ],
+  "factions": [
+    {
+      "id": "nomads",
+      "name": "Steppe Nomads",
+      "tagline": "Win by tempo, escape routes, and sudden board control.",
+      "unlock": {
+        "type": "free",
+        "description": "Available from the first match."
+      },
+      "required_level_to_unlock": 1,
+      "passives": [
+        {
+          "id": "open_roads",
+          "name": "Open Roads",
+          "style": "mobility",
+          "description": "If no capture is available, once per turn one normal piece may move one diagonal square backward.",
+          "trigger": "turn_start",
+          "conditions": {
+            "requiresNoAvailableCapture": true,
+            "pieceTypes": ["normal"],
+            "usesPerTurn": 1
+          },
+          "effect": {
+            "type": "allow_backward_quiet_move",
+            "distance": 1
+          }
+        },
+        {
+          "id": "dust_veil",
+          "name": "Dust Veil",
+          "style": "defense",
+          "description": "After a quiet move, the moved piece blocks the first normal capture against it if the opponent has another legal capture.",
+          "trigger": "after_quiet_move",
+          "conditions": {
+            "pieceTypes": ["normal", "king"],
+            "blocksPerTurn": 1,
+            "requiresOpponentAlternateCapture": true
+          },
+          "effect": {
+            "type": "block_first_normal_capture",
+            "durationPly": 1
+          }
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "dash",
+          "name": "Dash",
+          "style": "tempo",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "Move one normal piece exactly two diagonal squares through empty squares. Dash cannot capture.",
+          "conditions": {
+            "requiresNoAvailableCapture": true,
+            "pieceTypes": ["normal"],
+            "pathMustBeEmpty": true
+          },
+          "effect": {
+            "type": "diagonal_quiet_move",
+            "distance": 2,
+            "canCapture": false
+          }
+        },
+        {
+          "id": "sandstorm_corridor",
+          "name": "Sandstorm Corridor",
+          "style": "board_control",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "Block two empty dark squares from enemy quiet landings for one enemy turn. Captures still override the storm.",
+          "conditions": {
+            "targetSquares": 2,
+            "targetsMustBeEmpty": true,
+            "targetsMustBeDark": true,
+            "cannotRemoveAllEnemyLegalMoves": true
+          },
+          "effect": {
+            "type": "block_enemy_quiet_landing",
+            "squares": 2,
+            "durationTurns": 1,
+            "capturesIgnoreBlock": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "iron_guard",
+      "name": "Iron Guard",
+      "tagline": "Hold the center, survive attacks, and punish overextension.",
+      "unlock": {
+        "type": "campaign",
+        "chapter": 1,
+        "description": "Complete Campaign Chapter 1: Hold the Center."
+      },
+      "required_level_to_unlock": 2,
+      "passives": [
+        {
+          "id": "shield_wall",
+          "name": "Shield Wall",
+          "style": "defense",
+          "description": "The first allied piece that enters a highlighted playable center square becomes guarded for the enemy turn.",
+          "trigger": "piece_enters_center",
+          "conditions": {
+            "area": "center_4x4",
+            "usesPerMatch": 1
+          },
+          "effect": {
+            "type": "guard_piece",
+            "durationPly": 1,
+            "blockedCaptureTypes": ["normal"]
+          }
+        },
+        {
+          "id": "vengeance_ledger",
+          "name": "Vengeance Ledger",
+          "style": "comeback",
+          "description": "After losing a piece, your next capture grants one extra Momentum. Can trigger twice per match.",
+          "trigger": "after_player_loses_piece",
+          "conditions": {
+            "maxTriggersPerMatch": 2,
+            "requiresNextMoveCapture": true
+          },
+          "effect": {
+            "type": "bonus_momentum_on_next_capture",
+            "gain": 1
+          }
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "fortify",
+          "name": "Fortify",
+          "style": "protection",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "Choose one allied piece. For two enemy turns, that piece cannot be captured.",
+          "conditions": {
+            "targets": 1,
+            "targetOwner": "self",
+            "cannotRemoveAllEnemyLegalMoves": true
+          },
+          "effect": {
+            "type": "make_uncapturable",
+            "durationPly": 2
+          }
+        },
+        {
+          "id": "barricade",
+          "name": "Barricade",
+          "style": "board_control",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "Place two temporary blockers on empty dark squares near an allied piece for one enemy turn.",
+          "conditions": {
+            "blockers": 2,
+            "placementRange": 1,
+            "targetsMustBeEmpty": true,
+            "targetsMustBeDark": true,
+            "anchorOwner": "self",
+            "cannotRemoveAllEnemyLegalMoves": true
+          },
+          "effect": {
+            "type": "place_temporary_blockers",
+            "blockers": 2,
+            "durationTurns": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "sun_court",
+      "name": "Sun Court",
+      "tagline": "Race for promotion and turn kings into pressure.",
+      "unlock": {
+        "type": "campaign",
+        "chapter": 2,
+        "description": "Complete Campaign Chapter 2: Race to the Crown."
+      },
+      "required_level_to_unlock": 4,
+      "passives": [
+        {
+          "id": "royal_pressure",
+          "name": "Royal Pressure",
+          "style": "promotion",
+          "description": "The first normal piece that enters the opponent's final three rows grants one Momentum.",
+          "trigger": "piece_enters_enemy_final_rows",
+          "conditions": {
+            "pieceTypes": ["normal"],
+            "rowsFromEnemyBack": 3,
+            "usesPerMatch": 1
+          },
+          "effect": {
+            "type": "gain_momentum",
+            "gain": 1
+          }
+        },
+        {
+          "id": "crown_tax",
+          "name": "Crown Tax",
+          "style": "comeback",
+          "description": "The first time the opponent promotes a king, gain two Momentum.",
+          "trigger": "opponent_promotes_piece",
+          "conditions": {
+            "usesPerMatch": 1
+          },
+          "effect": {
+            "type": "gain_momentum",
+            "gain": 2
+          }
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "crown_surge",
+          "name": "Crown Surge",
+          "style": "promotion",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "Choose one normal piece in the middle four rows. It becomes a king immediately, but cannot move this turn.",
+          "conditions": {
+            "targets": 1,
+            "targetOwner": "self",
+            "pieceTypes": ["normal"],
+            "allowedArea": "middle_4_rows",
+            "targetCannotBeCurrentlyCapturable": true
+          },
+          "effect": {
+            "type": "promote_to_king",
+            "skipMoveAfterUse": true
+          }
+        },
+        {
+          "id": "sun_lance",
+          "name": "Sun Lance",
+          "style": "capture",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "For this turn, one normal piece strikes like a king for a diagonal capture.",
+          "conditions": {
+            "targets": 1,
+            "targetOwner": "self",
+            "pieceTypes": ["normal"]
+          },
+          "effect": {
+            "type": "allow_lance_capture",
+            "durationTurns": 1,
+            "persistsThroughCaptureChain": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "void_order",
+      "name": "Void Order",
+      "tagline": "Disrupt lanes, mark mistakes, and bend board geometry.",
+      "unlock": {
+        "type": "vault_pass",
+        "description": "Premium faction. Unlock with the Void Order Campaign Pass in the Vault.",
+        "requirements": {
+          "itemId": "void_order_campaign_pass",
+          "priceShards": 900
+        }
+      },
+      "required_level_to_unlock": 99,
+      "passives": [
+        {
+          "id": "pressure_field",
+          "name": "Pressure Field",
+          "style": "comeback",
+          "description": "Once per match, when the opponent creates a mandatory capture against you, gain one Momentum.",
+          "trigger": "opponent_creates_mandatory_capture",
+          "conditions": {
+            "usesPerMatch": 1
+          },
+          "effect": {
+            "type": "gain_momentum",
+            "gain": 1
+          }
+        },
+        {
+          "id": "echo_mark",
+          "name": "Echo Mark",
+          "style": "trap",
+          "description": "The first enemy quiet move each turn is marked. Capturing that piece before its next action grants one Momentum.",
+          "trigger": "enemy_quiet_move",
+          "conditions": {
+            "marksPerTurn": 1,
+            "expiresOnMarkedPieceNextAction": true
+          },
+          "effect": {
+            "type": "mark_piece_for_bonus",
+            "bonusTrigger": "marked_piece_captured",
+            "gain": 1
+          }
+        }
+      ],
+      "ultimates": [
+        {
+          "id": "phase_shift",
+          "name": "Phase Shift",
+          "style": "reposition",
+          "cost": 2,
+          "usesPerMatch": 1,
+            "description": "Teleport one normal piece up to 3 squares to any empty dark square, ignoring blockers. Cannot be used during a mandatory capture.",
+          "conditions": {
+            "requiresNoAvailableCapture": true,
+            "targets": 1,
+            "targetOwner": "self",
+            "pieceTypes": ["normal"],
+            "targetsMustBeEmpty": true,
+            "targetsMustBeDark": true
+          },
+          "effect": {
+              "type": "rift_teleport",
+              "distance": 3,
+              "ignoresBlockers": true,
+              "canCapture": false
+          }
+        },
+        {
+          "id": "collapse",
+          "name": "Collapse",
+          "style": "board_control",
+          "cost": 2,
+          "usesPerMatch": 1,
+          "description": "Void one empty dark square for one enemy turn. No piece may land there.",
+          "conditions": {
+            "targetSquares": 1,
+            "targetsMustBeEmpty": true,
+            "targetsMustBeDark": true,
+            "cannotRemoveAllEnemyLegalMoves": true
+          },
+          "effect": {
+            "type": "block_all_landing",
+            "squares": 1,
+            "durationTurns": 1
+          }
+        }
+      ]
+    }
+  ]
+}

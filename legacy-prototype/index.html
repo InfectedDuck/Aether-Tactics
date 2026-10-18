@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Aether Tactics is a fast checkers training arena with AI opponents, sprint timers, coach review, daily tactics, city rankings, and Pro cosmetics."
+    />
+    <title>Aether Tactics | AI Checkers Arena</title>
+    <link rel="icon" type="image/svg+xml" href="assets/brand/aether-tactics-logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- ══════════ TOP BAR: app identity + global actions ══════════ -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <img class="brand-logo" src="assets/brand/aether-tactics-logo.svg" alt="Aether Tactics logo" />
+        <div class="topbar-titles">
+          <p class="eyebrow">nFactorial startup prototype</p>
+          <h1>Aether Tactics</h1>
+        </div>
+        <p class="topbar-tagline">Fast checkers duels with AI sparring, city rankings, and coach-style review.</p>
+      </div>
+      <div class="topbar-actions">
+        <span class="profile-chip" title="Active city ladder">
+          <span class="dot"></span>
+          <span id="profileBadgeTop">Local</span>
+        </span>
+        <button id="themeButton" class="ghost-btn" type="button" title="Toggle light / dark theme">◐ Theme</button>
+        <button id="proButton" class="pro-btn" type="button" title="See Pro benefits">✦ Upgrade</button>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <!-- ══════════ LEFT: SETUP (numbered steps) ══════════ -->
+      <aside class="panel setup-panel" aria-label="Match setup">
+        <section class="control-block" aria-label="Step 1 Match setup">
+          <div class="block-heading">
+            <span class="step"><i>01</i> Play setup</span>
+            <span class="mini-label" id="modeBadge">Local</span>
+          </div>
+
+          <span class="field-label">Mode — pick one</span>
+          <div id="modeButtons" class="segmented-control" role="tablist" aria-label="Game mode">
+            <button type="button" data-mode="local" title="Two players, one board">👥 Local</button>
+            <button type="button" data-mode="ai" title="Play against AI">🤖 vs AI</button>
+            <button type="button" data-mode="puzzle" title="Daily capture puzzle">🎯 Daily</button>
+            <button type="button" data-mode="campaign" title="Story lessons">🗺 Trail</button>
+          </div>
+
+          <div class="setup-grid">
+            <label>
+              <span>AI opponent</span>
+              <select id="aiLevelSelect">
+                <option value="beginner">Beginner</option>
+                <option value="smart">Smart</option>
+                <option value="coach">Coach</option>
+              </select>
+            </label>
+            <label>
+              <span>Clock</span>
+              <select id="timerSelect">
+                <option value="0">No timer</option>
+                <option value="180">3 min duel</option>
+                <option value="300">5 min classic</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">AI + Clock apply to vs AI. Trail &amp; Daily use fixed setups.</p>
+        </section>
+
+        <section class="control-block faction-block" aria-label="Step 2 Faction loadout">
+          <div class="block-heading">
+            <span class="step"><i>02</i> Faction loadout</span>
+            <span class="mini-label" id="factionUnlockBadge">Free</span>
+          </div>
+          <div class="faction-menu">
+            <div id="factionRail" class="faction-rail" aria-label="Faction list"></div>
+            <div class="faction-detail">
+              <div class="faction-title-row">
+                <span id="factionCrest" class="faction-crest">N</span>
+                <div>
+                  <strong id="factionName">Steppe Nomads</strong>
+                  <p id="factionLore">Win by tempo and escape routes.</p>
+                </div>
+              </div>
+              <div class="ability-preview">
+                <article id="passiveCard" class="ability-card passive-card"></article>
+                <article id="ultimateCard" class="ability-card ultimate-card"></article>
+              </div>
+              <div class="loadout-picker">
+                <div>
+                  <span class="summary-label">Passive</span>
+                  <div id="passiveChoices" class="choice-row"></div>
+                </div>
+                <div>
+                  <span class="summary-label">Ultimate</span>
+                  <div id="ultimateChoices" class="choice-row"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-block" aria-label="Step 3 Player profile">
+          <div class="block-heading">
+            <span class="step"><i>03</i> Player</span>
+            <span class="mini-label" id="profileBadge">Local</span>
+          </div>
+          <div class="profile-grid">
+            <label>
+              <span>Name</span>
+              <input id="playerNameInput" maxlength="18" autocomplete="name" placeholder="Player" />
+            </label>
+            <label>
+              <span>City ladder</span>
+              <select id="citySelect">
+                <option>Almaty</option>
+                <option>Astana</option>
+                <option>Shymkent</option>
+                <option>Aktobe</option>
+                <option>Karaganda</option>
+                <option>Global</option>
+              </select>
+            </label>
+          </div>
+          <button id="saveProfileButton" class="secondary-action" type="button">Save profile</button>
+        </section>
+
+        <div class="rules-chip" id="ruleStatus">Mandatory capture active</div>
+      </aside>
+
+      <!-- ══════════ CENTER: BOARD (primary focus) ══════════ -->
+      <main class="game-area">
+        <section class="status-strip" aria-live="polite">
+          <div class="turn-pill">
+            <span id="turnDot" class="turn-dot azure"></span>
+            <span id="gameMessage">Azure opens the match.</span>
+          </div>
+          <span id="winnerBadge" class="winner-badge" hidden></span>
+        </section>
+
+        <section class="stat-row" aria-label="Match summary">
+          <div class="stat-card">
+            <span class="summary-label">Turn</span>
+            <strong id="turnName">Azure</strong>
+          </div>
+          <div class="stat-card">
+            <span class="summary-label">Move</span>
+            <strong id="moveCount">1</strong>
+          </div>
+          <div class="stat-card">
+            <span class="summary-label">Clock</span>
+            <strong id="timerDisplay">--:--</strong>
+          </div>
+          <div class="stat-card highlight">
+            <span class="summary-label">Power</span>
+            <strong id="momentumDisplay">2</strong>
+          </div>
+        </section>
+
+        <section class="board-zone" aria-label="Checkers board">
+          <div id="board" class="board" role="grid" aria-label="8 by 8 checkers board"></div>
+        </section>
+
+        <!-- Grouped match actions: primary vs secondary -->
+        <section class="action-bar" aria-label="Match actions">
+          <div class="action-group primary-group">
+            <button id="newGameButton" class="primary-action" type="button" title="Start a new match (N)">▶ New match</button>
+            <button id="ultimateButton" class="power-action" type="button" title="Arm faction ultimate when charged">⚡ Power</button>
+          </div>
+          <div class="action-group secondary-group">
+            <button id="undoButton" type="button" title="Undo last move (U)">↩ Undo</button>
+            <span class="action-note">N = new · U = undo · Esc = close</span>
+          </div>
+        </section>
+      </main>
+
+      <!-- ══════════ RIGHT: INSIGHTS (tabbed, no endless scroll) ══════════ -->
+      <aside class="panel insight-panel" aria-label="Game insights">
+        <nav class="insight-tabs" aria-label="Insights">
+          <button type="button" class="insight-tab active" data-insight-tab="coach">🧭 Coach</button>
+          <button type="button" class="insight-tab" data-insight-tab="missions">🎯 Missions</button>
+          <button type="button" class="insight-tab" data-insight-tab="recap">📝 Recap</button>
+          <button type="button" class="insight-tab" data-insight-tab="board">♟ Board</button>
+        </nav>
+
+        <!-- COACH -->
+        <div class="insight-pane active" data-insight-pane="coach">
+          <section class="insight-block">
+            <div class="block-heading">
+              <span>Coach note</span>
+              <span class="mini-label">Live</span>
+            </div>
+            <p id="coachNote">Control the center early. Captures become mandatory as soon as they appear.</p>
+          </section>
+          <section class="insight-block">
+            <div class="block-heading">
+              <span>Game review</span>
+              <span class="mini-label" id="reviewCount">0</span>
+            </div>
+            <ul id="reviewList" class="review-list"></ul>
+          </section>
+        </div>
+
+        <!-- MISSIONS -->
+        <div class="insight-pane" data-insight-pane="missions">
+          <section class="insight-block puzzle-card">
+            <div class="block-heading">
+              <span>Daily tactic</span>
+              <span class="mini-label" id="streakCount">0 streak</span>
+            </div>
+            <p id="puzzleStatus">Switch to Daily mode for a capture challenge.</p>
+          </section>
+          <section class="insight-block campaign-card">
+            <div class="block-heading">
+              <span>Nomad campaign</span>
+              <span class="mini-label" id="campaignProgressBadge">0/4</span>
+            </div>
+            <p id="campaignStatus">Switch to Trail mode to begin The Comeback Trail.</p>
+            <div id="campaignLevelButtons" class="campaign-levels"></div>
+            <p id="campaignObjective" class="campaign-objective"></p>
+          </section>
+        </div>
+
+        <!-- RECAP -->
+        <div class="insight-pane" data-insight-pane="recap">
+          <section class="insight-block recap-block">
+            <div class="block-heading">
+              <span>Match recap</span>
+              <span class="mini-label" id="recapBadge">Ready</span>
+            </div>
+            <p id="recapText">Finish a game to generate a shareable recap.</p>
+            <button id="shareButton" class="secondary-action" type="button">⧉ Share recap</button>
+          </section>
+          <section class="insight-block">
+            <div class="block-heading">
+              <span>Move history</span>
+              <span class="mini-label" id="historyCount">0</span>
+            </div>
+            <ol id="moveHistory" class="move-history compact"></ol>
+          </section>
+        </div>
+
+        <!-- BOARD -->
+        <div class="insight-pane" data-insight-pane="board">
+          <section class="insight-block">
+            <div class="block-heading">
+              <span>Pieces</span>
+              <span class="mini-label">Live</span>
+            </div>
+            <div class="piece-meters">
+              <div>
+                <div class="meter-row"><span>Azure</span><strong id="azurePieces">12</strong></div>
+                <div class="meter-track"><span id="azureMeter" class="meter-fill azure-fill"></span></div>
+              </div>
+              <div>
+                <div class="meter-row"><span>Amber</span><strong id="amberPieces">12</strong></div>
+                <div class="meter-track"><span id="amberMeter" class="meter-fill amber-fill"></span></div>
+              </div>
+            </div>
+          </section>
+          <section class="insight-block">
+            <div class="block-heading">
+              <span>City leaderboard</span>
+              <span class="mini-label" id="leaderboardScope">Almaty</span>
+            </div>
+            <ol id="leaderboardList" class="leaderboard-list"></ol>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <div id="proModal" class="modal-backdrop" hidden>
+      <section class="pro-modal" role="dialog" aria-modal="true" aria-labelledby="proTitle">
+        <div class="block-heading">
+          <span id="proTitle">Aether Tactics Pro</span>
+          <button id="closeProButton" class="icon-action" type="button" aria-label="Close">✕</button>
+        </div>
+        <p>A monetization-ready layer for serious training, custom identity, and competitive city seasons.</p>
+        <div class="pro-grid">
+          <div>
+            <span class="summary-label">Free</span>
+            <ul>
+              <li>Local matches</li>
+              <li>Beginner AI</li>
+              <li>Daily tactic</li>
+              <li>Basic recap</li>
+            </ul>
+          </div>
+          <div>
+            <span class="summary-label">Pro</span>
+            <ul>
+              <li>Unlimited coach review</li>
+              <li>Advanced AI sparring</li>
+              <li>Premium board skins</li>
+              <li>City tournament badges</li>
+            </ul>
+          </div>
+        </div>
+        <button id="mockCheckoutButton" class="primary-action" type="button">Join Pro waitlist</button>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -2834,6 +2834,57 @@ function loadLeaderboard() {
   }
 }
 
+function syncTopProfileBadge() {
+  const top = document.querySelector("#profileBadgeTop");
+  if (top && typeof profile !== "undefined") {
+    top.textContent = `${profile.name || "Player"} · ${profile.city || "Local"}`;
+  }
+  const originalRenderStatus = typeof renderStatus === "function" ? renderStatus : null;
+  void originalRenderStatus;
+}
+
+function initInsightTabs() {
+  const tabs = Array.from(document.querySelectorAll("[data-insight-tab]"));
+  const panes = Array.from(document.querySelectorAll("[data-insight-pane]"));
+  if (!tabs.length || !panes.length) return;
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.toggle("active", t === tab));
+      panes.forEach((p) => p.classList.toggle("active", p.dataset.insightPane === tab.dataset.insightTab));
+    });
+  });
+}
+
+function initNavigationShortcuts() {
+  document.addEventListener("keydown", (event) => {
+    if (event.target && ["INPUT", "SELECT", "TEXTAREA"].includes(event.target.tagName)) return;
+    const key = event.key.toLowerCase();
+    if (key === "n") {
+      const btn = document.querySelector("#newGameButton");
+      if (btn && !btn.disabled) btn.click();
+    }
+    if (key === "u") {
+      const btn = document.querySelector("#undoButton");
+      if (btn && !btn.disabled) btn.click();
+    }
+  });
+  const topBadge = document.querySelector("#profileBadgeTop");
+  if (topBadge) {
+    const obs = new MutationObserver(syncTopProfileBadge);
+    const src = document.querySelector("#profileBadge");
+    if (src) obs.observe(src, { childList: true, characterData: true, subtree: true });
+  }
+  syncTopProfileBadge();
+  setInterval(syncTopProfileBadge, 1500);
+}
+
+try {
+  initInsightTabs();
+  initNavigationShortcuts();
+} catch (e) {
+  console.warn("Navigation enhancements failed to init", e);
+}
+
 function saveCampaignProgress() {
   try {
     localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignProgress));

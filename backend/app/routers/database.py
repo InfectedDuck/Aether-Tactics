@@ -613,11 +613,32 @@ def vault_items(request: Request, user_id: str | None = None):
 def purchase_vault_item(purchase: VaultPurchaseRequest, request: Request):
     supabase = supabase_or_503()
     user_id = resolve_owned_user_id(request, str(purchase.user_id))
+    # Phase 2 hardening: prefer the atomic RPC (supabase/migration_purchase_cosmetic.sql).
+    # Falls back to the stepped flow on DBs where the migration hasn't been applied yet.
+    try:
+        rpc_response = supabase.rpc("purchase_cosmetic", {"p_user_id": user_id, "p_cosmetic_id": purchase.cosmetic_id}).execute()
+        rpc_data = rpc_response.data
+        if isinstance(rpc_data, list):
+            rpc_data = rpc_data[0] if rpc_data else {}
+        if isinstance(rpc_data, dict) and (rpc_data.get("purchased") or rpc_data.get("shards_spent") is not None):
+            profile_response = supabase.table("profiles").select("*").eq("user_id", user_id).single().execute()
+            inventory_response = supabase.table("inventory_items").select("*").eq("user_id", user_id).eq("cosmetic_id", purchase.cosmetic_id).limit(1).execute()
+            inventory_rows = inventory_response.data or []
+            return {
+                "purchased": True,
+                "profile": profile_response.data,
+                "inventory_item": inventory_rows[0] if inventory_rows else None,
+            }
+    except Exception:
+        pass
     try:
         profile_response = supabase.table("profiles").select("shards,owned_cosmetics,unlocked_factions").eq("user_id", user_id).single().execute()
         item_response = supabase.table("cosmetics").select("*").eq("cosmetic_id", purchase.cosmetic_id).single().execute()
+        existing_response = supabase.table("inventory_items").select("inventory_item_id").eq("user_id", user_id).eq("cosmetic_id", purchase.cosmetic_id).limit(1).execute()
     except Exception as exc:
         raise HTTPException(status_code=404, detail=f"Purchase target not found: {exc}") from exc
+    if existing_response.data:
+        raise HTTPException(status_code=409, detail="Item already owned.")
 
     profile = profile_response.data
     item = item_response.data
@@ -645,24 +666,51 @@ def purchase_vault_item(purchase: VaultPurchaseRequest, request: Request):
 
     try:
         next_owned = list(owned | {purchase.cosmetic_id})
-        profile_patch = {
-            "shards": int(profile.get("shards") or 0) - price,
-            "owned_cosmetics": next_owned,
-        }
-        if purchase.cosmetic_id == "void_order_campaign_pass":
-            profile_patch["unlocked_factions"] = sorted(unlocked | {"void_order"})
-        profile_update = supabase.table("profiles").update(profile_patch).eq("user_id", user_id).execute()
-        inventory = supabase.table("inventory_items").insert({
-            "user_id": user_id,
-            "cosmetic_id": purchase.cosmetic_id,
-            "is_equipped": False,
-        }).execute()
-        supabase.table("inventory_transactions").insert({
-            "user_id": user_id,
-            "source": "vault_purchase",
-            "shards_delta": -price,
-            "metadata": {"cosmetic_id": purchase.cosmetic_id},
-        }).execute()
+        # Insert-first ordering: the unique(user_id, cosmetic_id) constraint turns a
+        # double-click race into a 409 on the second request instead of double-spend.
+        try:
+            inventory = supabase.table("inventory_items").insert({
+                "user_id": user_id,
+                "cosmetic_id": purchase.cosmetic_id,
+                "is_equipped": False,
+            }).execute()
+        except Exception as exc:
+            message = str(exc)
+            if "duplicate" in message.lower() or "unique" in message.lower() or "already" in message.lower():
+                raise HTTPException(status_code=409, detail="Item already owned.") from exc
+            raise
+        try:
+            profile_patch = {
+                "shards": int(profile.get("shards") or 0) - price,
+                "owned_cosmetics": next_owned,
+            }
+            if purchase.cosmetic_id == "void_order_campaign_pass":
+                profile_patch["unlocked_factions"] = sorted(unlocked | {"void_order"})
+            profile_update = supabase.table("profiles").update(profile_patch).eq("user_id", user_id).execute()
+        except Exception as exc:
+            # Compensate: shards update failed after the insert, so remove the row
+            # rather than leaving a granted item with no charge.
+            try:
+                rows = (inventory.data or []) if isinstance(inventory, object) else []
+                for row in rows:
+                    item_id = row.get("inventory_item_id") if isinstance(row, dict) else None
+                    if item_id:
+                        supabase.table("inventory_items").delete().eq("inventory_item_id", item_id).execute()
+            except Exception:
+                pass
+            raise HTTPException(status_code=400, detail=f"Purchase failed: {exc}") from exc
+        try:
+            supabase.table("inventory_transactions").insert({
+                "user_id": user_id,
+                "source": "vault_purchase",
+                "shards_delta": -price,
+                "metadata": {"cosmetic_id": purchase.cosmetic_id},
+            }).execute()
+        except Exception:
+            # Audit best-effort: the purchase itself already succeeded.
+            pass
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Purchase failed: {exc}") from exc
 

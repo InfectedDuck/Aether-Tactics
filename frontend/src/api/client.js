@@ -47,7 +47,7 @@ export async function getBootstrap(city = "Almaty") {
     return await response.json();
   } catch (error) {
     console.warn("Using local fallback data because the API is not available.", error);
-    return fallbackBootstrap;
+    return { ...fallbackBootstrap, __fallback: true };
   }
 }
 

@@ -28,10 +28,31 @@ Aether Tactics treats checkers as a complete tactics platform instead of a one-s
 1. Open the live frontend and enter **Nexus Core**.
 2. Play a **Campaign** lesson such as Nomads' Open Road Escape to see guided faction mechanics.
 3. Finish a match and read the **coach report** plus the interactive **Retry Moment**.
-4. Open **Inventory** and switch between 3D and 2D skins to see renderer-specific cosmetics.
-5. Open **Vault** and **Battle Pass** to see the economy, missions, and reward loop.
-6. For multiplayer, use two real Supabase accounts in two browser sessions, then try **Fast Match** or **Host Lobby**.
+4. Open **Collection → Equip** and switch between 3D and 2D skins to see renderer-specific cosmetics.
+5. Open **Collection → Shop** and **Progress → Battle Pass** to see the economy, missions, and reward loop.
+6. For multiplayer, use two real Supabase accounts in two browser sessions, then try **Find Match** or **Host Private Lobby**.
 7. Open the backend `/docs` page to inspect the FastAPI surface behind the game.
+
+## Screenshots
+
+Captured from the real app running locally with the offline Admin Demo account
+(`ADMIN_CORE`). See [docs/SCREENSHOT_GUIDE.md](docs/SCREENSHOT_GUIDE.md) to regenerate them.
+
+| Nexus Core hub | Skirmish setup | 3D battlefield |
+| --- | --- | --- |
+| ![Nexus Core](docs/screenshots/01-nexus-core-menu.jpg) | ![Skirmish](docs/screenshots/02-skirmish-config.jpg) | ![3D board](docs/screenshots/03-battlefield-3d.jpg) |
+
+| Campaign paths | Daily Tactic | Coach report |
+| --- | --- | --- |
+| ![Campaign](docs/screenshots/05-campaign-trails.jpg) | ![Daily](docs/screenshots/06-daily-tactic.jpg) | ![Coach](docs/screenshots/07-coach-report.jpg) |
+
+| Collection shop | Battle Pass | Multiplayer |
+| --- | --- | --- |
+| ![Collection](docs/screenshots/09-collection-shop.jpg) | ![Battle Pass](docs/screenshots/11b-battle-pass.jpg) | ![Multiplayer](docs/screenshots/12-multiplayer.jpg) |
+
+| Profile | Settings | Faction Codex |
+| --- | --- | --- |
+| ![Profile](docs/screenshots/13-profile.jpg) | ![Settings](docs/screenshots/14-settings.jpg) | ![Codex](docs/screenshots/15-codex-factions.jpg) |
 
 ## Highlights
 
@@ -71,8 +92,8 @@ The design goal is to make checkers feel like a modern tactics service: learn a 
 | AI Skirmish | Classic or Power checkers against Beginner, Smart, or Coach AI profiles. |
 | Campaign Trails | Scripted faction lessons that become live boards after the guided tactical moment. |
 | Daily Tactic | Puzzle-style daily challenge with streak and quest progress. |
-| Multiplayer | Fast queue, ranked queue, private host lobbies, join codes, friend invites, and WebSocket board sync. |
-| Vault / Inventory | Shard economy, collectible cosmetics, 2D/3D renderer compatibility, and equipped identity. |
+ | Multiplayer | Single Fast/Ranked queue, private host lobbies, join codes, friend invites, and WebSocket board sync. |
+ | Collection (Vault shop + Inventory equip) | Shard economy, collectible cosmetics, 2D/3D renderer compatibility, and equipped identity. |
 | Battle Pass | Daily/weekly missions, BP XP, free/pro lanes, and auto-claim reward tiers. |
 
 ## Core Gameplay
@@ -361,7 +382,7 @@ supabase/   SQL schema, seed data, RLS policies, RPCs
 tools/      asset cleanup and generated music scripts
 ```
 
-The old root `index.html`, `styles.css`, and `app.js` are kept as static prototype/reference files. The active product is `frontend/` plus `backend/`.
+The original single-page prototype (`index.html`, `styles.css`, `app.js`) is archived under `legacy-prototype/` for reference. The active product is `frontend/` plus `backend/`.
 
 ## Engineering Notes
 
@@ -379,7 +400,13 @@ Run these files in the Supabase SQL Editor:
 ```text
 supabase/schema.sql
 supabase/seed.sql
+supabase/migration_purchase_cosmetic.sql
 ```
+
+`migration_purchase_cosmetic.sql` adds the atomic `purchase_cosmetic(...)` RPC used
+by `POST /api/vault/purchase` (single-transaction shard deduction + item grant +
+audit, safe against double-click races). The backend falls back to a hardened
+stepped flow on databases where the migration hasn't been applied yet.
 
 The schema creates:
 
@@ -464,13 +491,17 @@ npm install
 npm run dev
 ```
 
-Open:
+Open (two terminals — backend first, then frontend):
 
 ```text
 http://localhost:5173
 ```
 
-If the backend is offline, the frontend falls back to local demo content so the UI can still be explored.
+> The Vite dev server proxies `/api/*` to `http://localhost:8000`. If you see
+> `[vite] http proxy error: ECONNREFUSED` in the terminal, the backend isn't
+> running — start it first. If the backend is offline, the frontend falls back
+> to local demo content (with an on-screen "Backend offline" notice) so the UI
+> can still be explored.
 
 ## Demo Access
 

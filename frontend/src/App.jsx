@@ -301,6 +301,7 @@ const MULTIPLAYER_FRIENDS = [
   { user_id: "demo-neon", username: "Neon_Ghost", name: "Neon_Ghost", status: "Online", avatar: "NG", accent: "amber", bio: "Unpredictable flank pressure.", city: "Aktobe", level: 5, pvp_stats: { wins: 8, losses: 8, current_win_streak: 2, mmr_elo_rating: 1015 }, threat: "Tactical", presence: "online" },
   { user_id: "demo-aether", username: "Aether_Pilot", name: "Aether_Pilot", status: "Offline", avatar: "AP", accent: "purple", bio: "Training for ranked sprints.", city: "Global", level: 4, pvp_stats: { wins: 4, losses: 6, current_win_streak: 0, mmr_elo_rating: 940 }, threat: "Unknown", presence: "offline" },
 ];
+// Phase 2: deprecated mock — kept for reference, no longer rendered as live rankings.
 const MULTIPLAYER_LEADERS = [
   { rank: 1, name: "Void_Caller", city: "Almaty", elo: 2890 },
   { rank: 2, name: "Stellar_Nova", city: "Astana", elo: 2750 },
@@ -1761,6 +1762,11 @@ export function App() {
   useEffect(() => {
     getBootstrap(profile.city).then((payload) => {
       setData(payload);
+      // Phase 2 honesty: the API client swallows outages into local fallback data.
+      // Surface it instead of pretending the backend is live.
+      if (payload?.__fallback) {
+        setEconomyMessage("Backend offline — showing local demo content. Progress saves locally only.");
+      }
       const firstLevel = payload.campaign?.levels?.[0]?.id;
       if (firstLevel) {
         setCampaignLevelId(firstLevel);
@@ -8338,7 +8344,9 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
   const selectedUltimate = selectedFaction?.ultimates?.find((ability) => ability.id === selectedLoadout.ultimateId) || selectedFaction?.ultimates?.[0];
   const setupLocked = queueState.mode !== "idle" && queueState.mode !== "ranked-pending";
   const filteredLeaderboard = filterLeaderboardByCity(leaderboard || [], leaderboardCity);
-  const leaderboardSource = filteredLeaderboard.length ? filteredLeaderboard : normalizeLeaderboardCity(leaderboardCity) === "global" && !(leaderboard || []).length ? MULTIPLAYER_LEADERS : [];
+  // Phase 2 honesty: never show hard-coded demo leaders as if they were live rankings.
+  // Empty live data renders the honest empty state below ("No commanders from X yet").
+  const leaderboardSource = filteredLeaderboard;
   const leaders = leaderboardSource.slice(0, 5).map((row, index) => ({
     id: row.id || row.user_id || `${row.name || row.username}-${row.city || "global"}-${index}`,
     rank: index + 1,
@@ -9212,6 +9220,9 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
   const mountRef = useRef(null);
   const latestRef = useRef({ board, selected, legalMoves, powerTargets, passiveTargets, tutorialTargets, blockedSquares, protectedSquares, markedPiece, cosmetics, pieceColors, boardPerspective, onSquare });
   const syncRef = useRef(() => {});
+  // Phase 2 resilience: WebGL can throw (no GPU, blocked context, OOM). Show an
+  // honest fallback panel instead of crashing the whole match view.
+  const [threeFailed, setThreeFailed] = useState("");
 
   useEffect(() => {
     latestRef.current = { board, selected, legalMoves, powerTargets, passiveTargets, tutorialTargets, blockedSquares, protectedSquares, markedPiece, cosmetics, pieceColors, boardPerspective, onSquare };
@@ -9221,12 +9232,19 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return undefined;
+    let renderer = null;
+    let raf = 0;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.1, 100);
     camera.position.set(0, 7.4, 7.8);
     camera.lookAt(0, 0, 0);
     const cameraTarget = new THREE.Vector3();
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (error) {
+      setThreeFailed(error?.message || "WebGL unavailable");
+      return undefined;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
@@ -9452,7 +9470,6 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
     window.addEventListener("resize", resize);
 
     let frame = 0;
-    let raf = 0;
     function animate() {
       raf = requestAnimationFrame(animate);
       frame += 1;
@@ -9470,15 +9487,26 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
-      syncRef.current = () => {};
-      disposeBoardSkinRuntime(boardSkinState.runtime);
-      environmentTexture.dispose();
-      pmremGenerator.dispose();
-      renderer.dispose();
-      if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
+      if (renderer) {
+        renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
+        syncRef.current = () => {};
+        disposeBoardSkinRuntime(boardSkinState.runtime);
+        environmentTexture.dispose();
+        pmremGenerator.dispose();
+        renderer.dispose();
+        if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
+      }
     };
   }, []);
+
+  if (threeFailed) {
+    return (
+      <div className="battle-three-board battle-three-fallback" ref={mountRef}>
+        <strong>3D unavailable on this device</strong>
+        <span>{threeFailed}. Switch to the 2D renderer in Inventory → Equip for the same match.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="battle-three-board" ref={mountRef}>

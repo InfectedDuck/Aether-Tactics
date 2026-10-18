@@ -12227,4 +12227,7 @@ button.battle-power-card:disabled,
 .queue-mode-toggle button { min-height: 2.5rem; font-weight: 800; border-radius: 10px; opacity: 0.7; }
 .queue-mode-toggle button.active { opacity: 1; border-color: #7c5cff; background: rgba(124,92,255,0.14); }
 .queue-grid.single-queue { grid-template-columns: 1fr; }
+.battle-three-fallback { display: grid; place-items: center; gap: 0.4rem; padding: 2rem 1.2rem; text-align: center; border: 1px dashed rgba(255,255,255,0.25); border-radius: 12px; }
+.battle-three-fallback strong { font-size: 1rem; }
+.battle-three-fallback span { color: #a8a1b8; font-size: 0.82rem; max-width: 26rem; }
 

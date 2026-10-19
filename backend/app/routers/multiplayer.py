@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -17,6 +17,64 @@ challenge_connections: dict[str, list[WebSocket]] = {}
 pending_challenges: dict[str, dict[str, Any]] = {}
 queues: dict[str, list[dict[str, Any]]] = {"fast": [], "ranked": []}
 matchmaking_tickets: dict[str, dict[str, Any]] = {}
+
+# ── Phase 2 hardening: bound in-memory state (process-local by design; see README).
+# Rooms/tickets expire so Render restarts + abandoned searches don't grow unbounded.
+# Full persistence (Redis/Supabase Realtime) remains a follow-up; these caps stop leaks.
+ROOM_TTL_SECONDS = 4 * 60 * 60  # 4h: private/match rooms
+QUEUE_TICKET_TTL_SECONDS = 15 * 60  # 15min: matchmaking tickets
+MAX_ROOMS = 2000
+MAX_QUEUE_PER_MODE = 500
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def prune_stale_multiplayer_state() -> None:
+    now = _utcnow()
+    expired_rooms = []
+    for code, room in rooms.items():
+        ts = _parse_ts(room.get("updated_at") or room.get("created_at"))
+        if ts and (now - ts) > timedelta(seconds=ROOM_TTL_SECONDS):
+            expired_rooms.append(code)
+    for code in expired_rooms:
+        rooms.pop(code, None)
+        connections.pop(code, None)
+    if len(rooms) > MAX_ROOMS:
+        # Evict oldest finished/abandoned/waiting rooms first.
+        ordered = sorted(
+            rooms.items(),
+            key=lambda item: (_parse_ts(item[1].get("updated_at") or item[1].get("created_at") or "") or now),
+        )
+        for code, _ in ordered[: len(rooms) - MAX_ROOMS]:
+            rooms.pop(code, None)
+            connections.pop(code, None)
+    expired_tickets = []
+    for user_id, ticket in matchmaking_tickets.items():
+        ts = _parse_ts(ticket.get("queued_at") or ticket.get("matched_at"))
+        if ts and (now - ts) > timedelta(seconds=QUEUE_TICKET_TTL_SECONDS):
+            expired_tickets.append(user_id)
+    for user_id in expired_tickets:
+        ticket = matchmaking_tickets.get(user_id)
+        if ticket and ticket.get("status") == "searching":
+            ticket["status"] = "expired"
+    for mode in queues:
+        queues[mode] = [
+            ticket
+            for ticket in queues[mode]
+            if matchmaking_tickets.get(ticket["user_id"], {}).get("status") == "searching"
+        ][:MAX_QUEUE_PER_MODE]
 
 
 def resolve_multiplayer_user_id(request: Request, supplied_user_id: str | None = None) -> str:
@@ -87,6 +145,7 @@ def user_has_matched_opponent(room: dict[str, Any] | None, user_id: str) -> bool
 
 @router.post("/multiplayer/rooms")
 def create_room(room_request: MultiplayerRoomCreate, request: Request):
+    prune_stale_multiplayer_state()
     user_id = resolve_multiplayer_user_id(request, str(room_request.user_id))
     room_code = make_room_code()
     game_variant = normalize_game_variant(room_request.game_variant)
@@ -110,6 +169,7 @@ def create_room(room_request: MultiplayerRoomCreate, request: Request):
 
 @router.get("/multiplayer/rooms/{room_code}")
 def get_room(room_code: str):
+    prune_stale_multiplayer_state()
     room = rooms.get(room_code.upper())
     if not room:
         return {"room": None}
@@ -118,6 +178,7 @@ def get_room(room_code: str):
 
 @router.post("/multiplayer/queue/{queue_mode}")
 def join_queue(queue_mode: str, room_request: MultiplayerRoomCreate, request: Request):
+    prune_stale_multiplayer_state()
     mode = queue_mode if queue_mode in queues else "fast"
     user_id = resolve_multiplayer_user_id(request, str(room_request.user_id))
     game_variant = normalize_game_variant(room_request.game_variant)
@@ -186,6 +247,7 @@ def join_queue(queue_mode: str, room_request: MultiplayerRoomCreate, request: Re
 
 @router.get("/multiplayer/queue/status")
 def queue_status(user_id: str, request: Request, mode: str = "fast", room_code: str | None = None):
+    prune_stale_multiplayer_state()
     owned_user_id = resolve_multiplayer_user_id(request, user_id)
     ticket = matchmaking_tickets.get(owned_user_id)
     if not ticket or (mode in queues and ticket.get("mode") != mode):
@@ -212,6 +274,7 @@ def queue_status(user_id: str, request: Request, mode: str = "fast", room_code: 
 
 @router.delete("/multiplayer/queue")
 def cancel_queue(user_id: str, request: Request):
+    prune_stale_multiplayer_state()
     owned_user_id = resolve_multiplayer_user_id(request, user_id)
     removed = 0
     for mode in queues:
@@ -240,6 +303,11 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
         if auth_user_id != str(user_id):
             await websocket.close(code=1008, reason="User id does not match Supabase token.")
             return
+    # Phase 2 hardening: don't auto-create rooms on typos. Guests must join an
+    # existing room; only hosts may create one implicitly.
+    if code not in rooms and role != "host":
+        await websocket.close(code=1008, reason="Room not found. Check the lobby code.")
+        return
     room = rooms.setdefault(code, {
         "room_code": code,
         "mode": "private",
@@ -341,23 +409,31 @@ async def room_socket(websocket: WebSocket, room_code: str, user_id: str, role: 
                     room["status"] = "finished"
             await broadcast(code, {"type": "relay", "from": user_id, "payload": payload})
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        # Treat any socket failure like a disconnect so stale entries can't leak.
+        pass
+    finally:
         connections[code] = [item for item in connections.get(code, []) if item is not websocket]
         connection_meta.pop(id(websocket), None)
-        if has_active_room_connection(code, str(user_id), "match" if phase == "match" else None):
+        try:
+            if has_active_room_connection(code, str(user_id), "match" if phase == "match" else None):
+                await broadcast_room_updated(code, room)
+                return
+            slot = lobby_slot_for(room, str(user_id), role)
+            if phase == "match" and (room.get("status") == "in_match" or (room.get("last_state") and room.get("status") not in {"finished"})):
+                await finish_room_by_forfeit(code, room, str(user_id), "disconnect")
+                return
+            if room.get("status") not in {"starting", "finished"} and room.get("lobby_players", {}).get(slot):
+                mark_lobby_player_left(room, str(user_id), role)
+                await broadcast(code, {"type": "player_left", "user_id": str(user_id), "role": slot, "room": public_room_payload(room), "players": lobby_players_list(room), "message": "Commander left the room."})
+            if not connections[code]:
+                if room.get("status") not in {"finished", "starting", "in_match"}:
+                    room["status"] = "abandoned" if room.get("last_state") else "waiting"
+            await broadcast(code, {"type": "room_state", "room": room})
             await broadcast_room_updated(code, room)
-            return
-        slot = lobby_slot_for(room, str(user_id), role)
-        if phase == "match" and (room.get("status") == "in_match" or (room.get("last_state") and room.get("status") not in {"finished"})):
-            await finish_room_by_forfeit(code, room, str(user_id), "disconnect")
-            return
-        if room.get("status") not in {"starting", "finished"} and room.get("lobby_players", {}).get(slot):
-            mark_lobby_player_left(room, str(user_id), role)
-            await broadcast(code, {"type": "player_left", "user_id": str(user_id), "role": slot, "room": public_room_payload(room), "players": lobby_players_list(room), "message": "Commander left the room."})
-        if not connections[code]:
-            if room.get("status") not in {"finished", "starting", "in_match"}:
-                room["status"] = "abandoned" if room.get("last_state") else "waiting"
-        await broadcast(code, {"type": "room_state", "room": room})
-        await broadcast_room_updated(code, room)
+        except Exception:
+            pass
 
 
 @router.websocket("/ws/challenges")
@@ -389,6 +465,10 @@ async def challenge_socket(websocket: WebSocket, user_id: str, token: str | None
                 await handle_challenge_accept(str(user_id), payload)
                 continue
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
         challenge_connections[str(user_id)] = [item for item in challenge_connections.get(str(user_id), []) if item is not websocket]
 
 
@@ -670,7 +750,7 @@ async def broadcast(room_code: str, payload: dict[str, Any]):
     for connection in connections.get(room_code, []):
         try:
             await connection.send_json(payload)
-        except RuntimeError:
+        except Exception:
             stale.append(connection)
     if stale:
         connections[room_code] = [item for item in connections.get(room_code, []) if item not in stale]

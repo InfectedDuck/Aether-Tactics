@@ -17,6 +17,11 @@ class LeaderboardResult(BaseModel):
 
 leaderboard_overrides: list[dict] = []
 
+# Phase 2 hardening: the local override list is process-ephemeral by design
+# (real rankings come from Supabase via /api/leaderboard/live). Cap it so local
+# POST /api/leaderboard writes can't grow unbounded across a long-lived process.
+MAX_LOCAL_OVERRIDES = 200
+
 
 @router.get("/health")
 def health():
@@ -59,6 +64,7 @@ def save_result(result: LeaderboardResult):
         "puzzles": result.puzzles,
     }
     leaderboard_overrides.append(entry)
+    del leaderboard_overrides[:-MAX_LOCAL_OVERRIDES]
     return {"saved": True, "entry": entry}
 
 

@@ -1,37 +1,55 @@
 # Aether Tactics
 
-Aether Tactics is a full-stack checkers tactics game built as a polished nFactorial Checkers entry. It starts from classic draughts, then layers in faction powers, AI coaching, 2D/3D cosmetics, multiplayer rooms, progression, a Vault economy, music, achievements, and a Founder Battle Pass.
+**Asymmetrical checkers with faction powers, AI coaching, and collectible board identity.**
 
-The project is not only a playable board. It is a product prototype around checkers, with the systems a real live game needs: identity, rewards, retention, social play, content, and operational tooling.
+![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=0b0c10) ![Vite](https://img.shields.io/badge/Vite-6-ffd62e?logo=vite&logoColor=0b0c10) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3ecf8e?logo=supabase&logoColor=0b0c10) ![Three.js](https://img.shields.io/badge/Three.js-000000?logo=threedotjs&logoColor=white)
 
-## Live Deployment
+A full-stack tactics game: real checkers rules (forced captures, multi-jumps, flying kings), four playable factions with unique powers, a 3D battlefield + fast 2D renderer, scripted campaign lessons, an AI coach that reviews every match, and a Vault / Battle Pass economy with persistent profiles.
+
+## Try It in 2 Minutes
+
+1. Open the live app → click **Explore as Demo Commander** (no signup, showcase progress preloaded).
+2. Play a **Campaign** lesson (Nomads' Open Road Escape) to feel faction movement.
+3. Finish any AI match → read the **AI Coach Review** (best move + ability impact).
+4. Open **Collection** → switch between Cosmos Relic 3D and Void Grid board.
 
 - Frontend: https://aether-tactics-frontend.vercel.app/menu
 - Backend API: https://aether-tactics-backend.onrender.com
 - API docs: https://aether-tactics-backend.onrender.com/docs
-- Health check: https://aether-tactics-backend.onrender.com/api/health
-- Database health: https://aether-tactics-backend.onrender.com/api/database/health
-- Repository: https://github.com/InfectedDuck/Aether-Tactics
 
-## Why It Stands Out
+## What I Built
 
-Aether Tactics treats checkers as a complete tactics platform instead of a one-screen board game. The core rules are still real checkers, but the surrounding product adds the things that make a modern game feel alive: faction identity, guided lessons, progression, multiplayer, cosmetics, social play, a seasonal pass, and a backend that persists meaningful player state.
+Aether Tactics treats checkers as a complete tactics platform instead of a one-screen board game. The core rules are still real checkers, but the surrounding product adds faction identity, guided lessons, progression, multiplayer, cosmetics, social play, a seasonal pass, and a backend that persists player state.
 
 - **Rules with depth:** forced captures, multi-jumps, flying kings, AI search, faction abilities, and server-side move validation.
 - **A complete player journey:** onboarding, campaign lessons, Daily Tactic, post-match coach reports, Retry Moments, rewards, Vault purchases, and Battle Pass progress.
 - **Real identity and persistence:** Supabase Auth, profiles, match history, campaign progress, inventory, friends, notifications, and city leaderboards.
 - **A premium-feeling board:** Three.js 3D pieces and board materials, a fast 2D renderer, generated music, generated art, and collectible skins.
-- **Multiplayer beyond a mockup:** private lobbies, fast/ranked queues, WebSocket sync, host/guest roles, friend invites, reconnect state, and forfeit/disconnect handling.
+- **Multiplayer:** private lobbies, fast/ranked queues, WebSocket sync, host/guest roles, friend invites, reconnect state, and forfeit handling.
 
-## Try These First
+## What I Learned
 
-1. Open the live frontend and enter **Nexus Core**.
-2. Play a **Campaign** lesson such as Nomads' Open Road Escape to see guided faction mechanics.
-3. Finish a match and read the **coach report** plus the interactive **Retry Moment**.
-4. Open **Inventory** and switch between 3D and 2D skins to see renderer-specific cosmetics.
-5. Open **Vault** and **Battle Pass** to see the economy, missions, and reward loop.
-6. For multiplayer, use two real Supabase accounts in two browser sessions, then try **Fast Match** or **Host Lobby**.
-7. Open the backend `/docs` page to inspect the FastAPI surface behind the game.
+- Server-side move validation (including Dash / Phase Shift / Collapse transitions) so the client can never submit an illegal board.
+- Atomic economy writes: Vault purchases run through a single `purchase_cosmetic()` RPC so double-clicks can't double-spend.
+- Graceful fallback: the frontend stays explorable on local demo content when the API is unreachable.
+- Screenshot-driven polish: curated demo state (mid-season Battle Pass, seeded coach report, equipped Void Grid) matters more than new features for a first impression.
+
+## Screenshots
+
+Showcase build running locally as the Demo Commander.
+See [docs/SCREENSHOT_GUIDE.md](docs/SCREENSHOT_GUIDE.md) to regenerate them.
+
+| Gateway — first impression | Nexus Core — product breadth | 3D battlefield — wow craft |
+| --- | --- | --- |
+| ![Gateway](docs/screenshots/00-gateway-login.jpg) | ![Nexus Core](docs/screenshots/01-nexus-core-menu.jpg) | ![3D board](docs/screenshots/03-battlefield-3d.jpg) |
+
+| Campaign — design depth | Coach report — AI differentiator | Collection — systems + art |
+| --- | --- | --- |
+| ![Campaign](docs/screenshots/05-campaign-trails.jpg) | ![Coach](docs/screenshots/07-coach-report.jpg) | ![Collection](docs/screenshots/09-collection-shop.jpg) |
+
+| Battle Pass — product thinking | Codex — world-building craft |
+| --- | --- |
+| ![Battle Pass](docs/screenshots/11b-battle-pass.jpg) | ![Codex](docs/screenshots/15-codex-factions.jpg) |
 
 ## Highlights
 
@@ -39,7 +57,7 @@ Aether Tactics treats checkers as a complete tactics platform instead of a one-s
 - **3D battlefield:** Three.js renderer, GLB disk models, dynamic lighting, shadows, camera perspective, generated board materials, and Meshy-generated disk skins.
 - **2D battlefield:** responsive board layout with premium SVG disk skins for lower-end devices and mobile-friendly play.
 - **Cosmetics:** 3D piece skins, 2D piece skins, board skins, champion badges, emotes, stickers, inventory equip state, and Vault purchases.
-- **Multiplayer:** private rooms, join codes/links, fast/ranked queue MVP, WebSocket board sync, host/guest roles, out-of-turn rejection, latest-state replay, forfeits, and visible player piece skins.
+- **Multiplayer:** private rooms, join codes/links, fast/ranked queues, WebSocket board sync, host/guest roles, out-of-turn rejection, latest-state replay, forfeits, and visible player piece skins.
 - **Progression:** EXP, levels, unlock milestones, achievements, claimable rewards, Shards, Essence, daily missions, streaks, and Battle Pass tiers.
 - **AI content:** AI-generated faction art, ability icons, campaign sector art, AI portraits, achievement badges, cosmetics, Pro banners, 3D model skins, and generated menu music.
 - **Backend:** FastAPI API, Supabase Auth integration, protected profile/match/inventory/campaign writes, live leaderboard RPCs, and multiplayer WebSockets.
@@ -71,8 +89,8 @@ The design goal is to make checkers feel like a modern tactics service: learn a 
 | AI Skirmish | Classic or Power checkers against Beginner, Smart, or Coach AI profiles. |
 | Campaign Trails | Scripted faction lessons that become live boards after the guided tactical moment. |
 | Daily Tactic | Puzzle-style daily challenge with streak and quest progress. |
-| Multiplayer | Fast queue, ranked queue, private host lobbies, join codes, friend invites, and WebSocket board sync. |
-| Vault / Inventory | Shard economy, collectible cosmetics, 2D/3D renderer compatibility, and equipped identity. |
+ | Multiplayer | Single Fast/Ranked queue, private host lobbies, join codes, friend invites, and WebSocket board sync. |
+ | Collection (Vault shop + Inventory equip) | Shard economy, collectible cosmetics, 2D/3D renderer compatibility, and equipped identity. |
 | Battle Pass | Daily/weekly missions, BP XP, free/pro lanes, and auto-claim reward tiers. |
 
 ## Core Gameplay
@@ -198,7 +216,7 @@ The generator script is `tools/generate_menu_music.mjs`.
 
 ## Multiplayer
 
-Multiplayer is implemented as an operations MVP:
+Multiplayer rooms and matchmaking:
 
 - Private room creation.
 - Join-by-code and shareable room links.
@@ -361,7 +379,7 @@ supabase/   SQL schema, seed data, RLS policies, RPCs
 tools/      asset cleanup and generated music scripts
 ```
 
-The old root `index.html`, `styles.css`, and `app.js` are kept as static prototype/reference files. The active product is `frontend/` plus `backend/`.
+The original single-page prototype (`index.html`, `styles.css`, `app.js`) is archived under `legacy-prototype/` for reference. The active product is `frontend/` plus `backend/`.
 
 ## Engineering Notes
 
@@ -379,7 +397,13 @@ Run these files in the Supabase SQL Editor:
 ```text
 supabase/schema.sql
 supabase/seed.sql
+supabase/migration_purchase_cosmetic.sql
 ```
+
+`migration_purchase_cosmetic.sql` adds the atomic `purchase_cosmetic(...)` RPC used
+by `POST /api/vault/purchase` (single-transaction shard deduction + item grant +
+audit, safe against double-click races). The backend falls back to a hardened
+stepped flow on databases where the migration hasn't been applied yet.
 
 The schema creates:
 
@@ -410,7 +434,8 @@ erDiagram
     factions ||--o{ campaign_progress : tracks
 ```
 
-## Run Locally
+<details>
+<summary><strong>Run Locally</strong> (backend first, then frontend)</summary>
 
 ### Environment
 
@@ -464,28 +489,34 @@ npm install
 npm run dev
 ```
 
-Open:
+Open (two terminals — backend first, then frontend):
 
 ```text
 http://localhost:5173
 ```
 
-If the backend is offline, the frontend falls back to local demo content so the UI can still be explored.
+> The Vite dev server proxies `/api/*` to `http://localhost:8000`. If you see
+> `[vite] http proxy error: ECONNREFUSED` in the terminal, the backend isn't
+> running — start it first. If the backend is offline, the frontend falls back
+> to local demo content (with an on-screen "Showcase build" notice) so the UI
+> can still be explored.
+
+</details>
 
 ## Demo Access
 
-When `VITE_SHOW_ADMIN_DEMO=true`, the gateway shows **Admin Demo Access**.
+When `VITE_SHOW_ADMIN_DEMO=true`, the gateway shows **Explore as Demo Commander** (no signup needed).
 
 Demo access grants:
 
 - Username: `ADMIN_CORE`
 - Level: `30`
 - Shards/Essence: `999999`
-- All factions.
-- All abilities.
+- All factions and abilities.
 - All achievements.
-- Completed daily quests.
-- Every Vault cosmetic.
+- Mid-season Battle Pass (Tier 5) with missions in progress.
+- Seeded coach report + 3-star Nomads campaign start.
+- Every Vault cosmetic, Cosmos Relic + Void Grid equipped.
 - Pro active.
 
 For a public production build, set `VITE_SHOW_ADMIN_DEMO=false`. Multiplayer should be tested with real Supabase accounts instead of the admin demo session.
@@ -595,10 +626,8 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY` in Vercel or frontend code.
 - Verify signup/login, AI match rewards, campaign progress, Vault purchase/equip, Battle Pass progress, Daily Tactic, leaderboard filters, and a two-account multiplayer room.
 - For Fast Match or Host Lobby, use real Supabase accounts in two browser sessions. Guest mode and admin demo access are useful for exploring the app, but authenticated accounts are the most reliable path for multiplayer.
 
-## Future Production Hardening
+## If I Kept Going
 
 - Replace in-memory multiplayer rooms with Redis or Supabase Realtime.
 - Split the large `frontend/src/App.jsx` into feature modules.
-- Add automated browser tests for 3D rendering, room sync, inventory equip, and reward progression.
-- Add CDN/storage workflow for generated media assets.
-- Add admin-only Supabase tooling for seasonal content updates and leaderboard badge distribution.
+- Add automated browser tests for 3D rendering, room sync, and reward progression.

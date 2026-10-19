@@ -74,7 +74,7 @@ const SHOW_ADMIN_DEMO = import.meta.env.DEV || String(import.meta.env.VITE_SHOW_
 const APP_NAME = "Aether Tactics";
 const BRAND_LOGO_SRC = "/assets/brand/aether-tactics-logo.svg";
 const DEMO_GUIDE_KEY = "dama-demo-guide-step";
-const DEMO_GUIDE_STEPS = ["nexus", "campaign", "match", "report", "vault"];
+const DEMO_GUIDE_STEPS = ["nexus", "campaign", "match", "report", "collection"];
 const DEFAULT_LOADOUT = { factionId: "nomads", passiveId: "open_roads", ultimateId: "dash" };
 const ONBOARDING_TUTORIAL_STEPS = [
   {
@@ -212,22 +212,65 @@ const NEXUS_ROUTES = [
     label: "Single Player",
     subtext: "Conquer the Void",
     icon: "gamepad",
+    group: "play",
     children: [
       { id: "skirmish", label: "Skirmish VS AI", subtext: "Practice your tactics", icon: "blade" },
       { id: "campaign", label: "Epic Campaign", subtext: "Follow the Echoes", icon: "map" },
       { id: "daily-puzzle", label: "Daily Challenge", subtext: "Puzzles & streaks", icon: "target" },
     ],
   },
-  { id: "multiplayer", label: "Multiplayer", subtext: "Ranked & Casual", icon: "users" },
-  { id: "progression", label: "Progression", subtext: "Rewards & Achievements", icon: "trophy" },
-  { id: "battle-pass", label: "Battle Pass", subtext: "Season Missions & Skins", icon: "pass" },
-  { id: "vault", label: "The Vault", subtext: "Rare Skins & Packs", icon: "vault" },
-  { id: "inventory", label: "Inventory", subtext: "Boards, Disks & Badges", icon: "inventory" },
-  { id: "codex", label: "Abilities Codex", subtext: "Lore & Mastery", icon: "book" },
-  { id: "settings", label: "Settings", subtext: "Audio & display", icon: "settings" },
+  { id: "multiplayer", label: "Multiplayer", subtext: "Ranked & Casual", icon: "users", group: "play" },
+  {
+    id: "collection",
+    label: "Collection",
+    subtext: "Shop & equip identity",
+    icon: "vault",
+    group: "collection",
+    children: [
+      { id: "vault", label: "The Vault", subtext: "Rare Skins & Packs", icon: "vault" },
+      { id: "inventory", label: "Inventory", subtext: "Boards, Disks & Badges", icon: "inventory" },
+      { id: "codex", label: "Abilities Codex", subtext: "Lore & Mastery", icon: "book" },
+    ],
+  },
+  {
+    id: "progress",
+    label: "Progress",
+    subtext: "Levels, season, rewards",
+    icon: "trophy",
+    group: "progress",
+    children: [
+      { id: "progression", label: "Progression", subtext: "Rewards & Achievements", icon: "trophy" },
+      { id: "battle-pass", label: "Battle Pass", subtext: "Season Missions & Skins", icon: "pass" },
+    ],
+  },
+  { id: "settings", label: "Settings", subtext: "Audio & display", icon: "settings", group: "system" },
 ];
-const AUTH_REQUIRED_ROUTES = new Set(["campaign", "daily-puzzle", "multiplayer", "progression", "battle-pass", "vault", "inventory", "codex", "settings", "loadout", "factions"]);
-const AUTH_REQUIRED_VIEWS = new Set(["campaign-select", "campaign-map", "daily-puzzle", "multiplayer", "progression", "battle-pass", "vault", "inventory", "loadout", "factions", "profile", "settings", "versus-intro"]);
+// ── Organized navigation groups: Play → Collection → Progress → System ──
+// Groups make 8+ routes scannable at a glance instead of one long flat list.
+// Collection merges Vault + Inventory + Codex; Progress merges Progression + Battle Pass.
+const NEXUS_GROUPS = [
+  { id: "play", label: "Play", hint: "Start a match in seconds", routeIds: ["single", "multiplayer"] },
+  { id: "collection", label: "Collection", hint: "Shop & equip identity", routeIds: ["collection"] },
+  { id: "progress", label: "Progress", hint: "Levels, missions, season", routeIds: ["progress"] },
+  { id: "system", label: "System", hint: "App & account", routeIds: ["settings"] },
+];
+function nexusRoutesById(id) {
+  for (const route of NEXUS_ROUTES) {
+    if (route.id === id) return route;
+    const child = route.children?.find((item) => item.id === id);
+    if (child) return child;
+  }
+  return undefined;
+}
+function nexusTopRouteFor(id) {
+  for (const route of NEXUS_ROUTES) {
+    if (route.id === id) return route;
+    if (route.children?.some((item) => item.id === id)) return route;
+  }
+  return undefined;
+}
+const AUTH_REQUIRED_ROUTES = new Set(["campaign", "daily-puzzle", "multiplayer", "collection", "progress", "progression", "battle-pass", "vault", "inventory", "codex", "settings", "loadout", "factions"]);
+const AUTH_REQUIRED_VIEWS = new Set(["campaign-select", "campaign-map", "daily-puzzle", "multiplayer", "collection", "progress", "progression", "battle-pass", "vault", "inventory", "loadout", "factions", "profile", "settings", "versus-intro"]);
 const NEXUS_FRIENDS = [
   { user_id: "demo-kaelen", username: "Kaelen_Void", name: "Kaelen_Void", faction: "Void Order", favorite_faction: "void_order", avatar: "KV", bio: "Reads tempo like telemetry.", city: "Almaty", level: 9, pvp_stats: { wins: 18, losses: 8, current_win_streak: 4, mmr_elo_rating: 1320 }, threat: "Tactical", presence: "online" },
   { user_id: "demo-suns", username: "Suns_Herald", name: "Suns_Herald", faction: "Sun Court", favorite_faction: "sun_court", avatar: "SH", bio: "Promotion lanes first, captures second.", city: "Astana", level: 7, pvp_stats: { wins: 12, losses: 11, current_win_streak: 1, mmr_elo_rating: 1085 }, threat: "Defensive", presence: "in_menu" },
@@ -258,6 +301,7 @@ const MULTIPLAYER_FRIENDS = [
   { user_id: "demo-neon", username: "Neon_Ghost", name: "Neon_Ghost", status: "Online", avatar: "NG", accent: "amber", bio: "Unpredictable flank pressure.", city: "Aktobe", level: 5, pvp_stats: { wins: 8, losses: 8, current_win_streak: 2, mmr_elo_rating: 1015 }, threat: "Tactical", presence: "online" },
   { user_id: "demo-aether", username: "Aether_Pilot", name: "Aether_Pilot", status: "Offline", avatar: "AP", accent: "purple", bio: "Training for ranked sprints.", city: "Global", level: 4, pvp_stats: { wins: 4, losses: 6, current_win_streak: 0, mmr_elo_rating: 940 }, threat: "Unknown", presence: "offline" },
 ];
+// Phase 2: deprecated mock — kept for reference, no longer rendered as live rankings.
 const MULTIPLAYER_LEADERS = [
   { rank: 1, name: "Void_Caller", city: "Almaty", elo: 2890 },
   { rank: 2, name: "Stellar_Nova", city: "Astana", elo: 2750 },
@@ -280,6 +324,8 @@ const VIEW_PATHS = {
   register: "/login",
   profile: "/profile",
   settings: "/settings",
+  collection: "/collection",
+  progress: "/progress",
   vault: "/vault",
   inventory: "/inventory",
   "battle-pass": "/battle-pass",
@@ -1361,7 +1407,7 @@ const ADMIN_PROFILE_PATCH = {
   name: "ADMIN_CORE",
   email: "admin@nexus.io",
   city: "Almaty",
-  bio: "Internal admin commander for testing every faction, ability, reward, and Vault flow.",
+  bio: "Founder commander — all campaign trails cleared, Cosmos Relic + Void Grid equipped.",
   current_exp: 0,
   level: 30,
   essence: 999999,
@@ -1369,6 +1415,8 @@ const ADMIN_PROFILE_PATCH = {
   is_admin: true,
   is_pro: true,
   streaks: { loginDays: 365, dailyPuzzle: 99, dailyWin: 99, lastLoginDate: null },
+  pvp_stats: { wins: 47, losses: 12, current_win_streak: 6, mmr_elo_rating: 1820 },
+  pve_stats: { wins: 63, losses: 9, current_win_streak: 8 },
 };
 
 export function App() {
@@ -1404,7 +1452,13 @@ export function App() {
   const [versusMatchup, setVersusMatchup] = useState(null);
   const [matchHistory, setMatchHistory] = useState(() => loadJson("dama-match-history", []));
   const [campaignProgress, setCampaignProgressState] = useState(() => loadJson("dama-campaign-progress", DEFAULT_CAMPAIGN_PROGRESS));
-  const [battlePass, setBattlePass] = useState(() => createBattlePassState());
+  const [battlePass, setBattlePass] = useState(() => {
+    // Showcase persistence: survive full reloads (screenshot capture uses page.goto)
+    // by hydrating from the same per-owner key the sync effect uses.
+    const session = restoreAuthSession();
+    const ownerId = hasPlayableSession(session) ? session.user.id : "guest";
+    return normalizeBattlePassState(loadJson(battlePassStorageKey(ownerId), createBattlePassState()));
+  });
   const initialRouteRef = useRef(null);
   if (!initialRouteRef.current) {
     initialRouteRef.current = currentRouteFromLocation();
@@ -1534,6 +1588,8 @@ export function App() {
     const fallbackTargets = {
       profile: "nexus",
       settings: "nexus",
+      collection: "nexus",
+      progress: "nexus",
       vault: "nexus",
       inventory: "nexus",
       "battle-pass": "nexus",
@@ -1714,6 +1770,10 @@ export function App() {
   useEffect(() => {
     getBootstrap(profile.city).then((payload) => {
       setData(payload);
+      // Showcase honesty: surface local fallback without alarming screenshot copy.
+      if (payload?.__fallback) {
+        setEconomyMessage("Showcase build — progress saves locally.");
+      }
       const firstLevel = payload.campaign?.levels?.[0]?.id;
       if (firstLevel) {
         setCampaignLevelId(firstLevel);
@@ -1875,6 +1935,11 @@ export function App() {
   }, [activeUserId, isAuthenticated, isLocalSession, campaignFactionId]);
 
   useEffect(() => {
+    // Showcase silence: local/demo sessions use bundled leaderboard content.
+    // Never paint sync errors over screenshot surfaces.
+    if (isLocalSession) {
+      return;
+    }
     getLiveLeaderboard(leaderboardCity, 10)
       .then((payload) => {
         if (payload.rows?.length) {
@@ -1882,7 +1947,7 @@ export function App() {
         }
       })
       .catch((error) => setScreenMessage("Leaderboard sync", getReadableError(error, "Unable to refresh leaderboard.")));
-  }, [leaderboardCity, activeUserId]);
+  }, [leaderboardCity, activeUserId, isLocalSession]);
 
   useEffect(() => {
     let active = true;
@@ -2366,6 +2431,18 @@ export function App() {
       setView("multiplayer");
       return;
     }
+    if (routeId === "collection") {
+      setView("collection");
+      return;
+    }
+    if (routeId === "progress") {
+      setView("progress");
+      return;
+    }
+    if (routeId === "progression") {
+      setView("progress");
+      return;
+    }
     if (routeId === "battle-pass") {
       setView("battle-pass");
       return;
@@ -2409,7 +2486,9 @@ export function App() {
     playSound("joined");
     speakLine(role === "host" ? "Private lobby ready." : "Opponent joined.");
     setMessage(`${role === "host" ? "Hosting" : "Joined"} ${queueVariantLabel(nextVariant).toLowerCase()} room ${roomCode}.`);
-    setView(options.directToGame ? "game" : "versus-intro");
+    // Phase 1 cleanup: skip versus-intro interstitial — go straight to the board.
+    // The versus route stays for deep-link backward compat but is no longer in the flow.
+    setView("game");
   }
 
   function publishLobbyState(nextState) {
@@ -2845,7 +2924,7 @@ export function App() {
       setCampaignLevelId(nextLevel.id);
       setCampaignFocusLevelId(nextLevel.id);
     }
-    setDemoGuideStep(nextLevel?.id && nextLevel.id !== clearedLevel.id ? "campaign" : "vault");
+    setDemoGuideStep(nextLevel?.id && nextLevel.id !== clearedLevel.id ? "campaign" : "collection");
     setEconomyMessage(nextLevel?.id && nextLevel.id !== clearedLevel.id ? `${clearedLevel.name} cleared. ${nextLevel.name} is now selected on the campaign map.` : `${clearedLevel.name} cleared. Campaign map updated.`);
     if (!isLocalSession) {
       saveCampaignProgress(activeUserId, campaignLevel?.factionId || campaignFactionId, nextProgress)
@@ -3230,10 +3309,14 @@ export function App() {
       inventory_item_id: `admin-${item.cosmetic_id}`,
       user_id: adminUserId,
       cosmetic_id: item.cosmetic_id,
-      is_equipped: item.cosmetic_id === "pieces_cosmos",
+      is_equipped: item.cosmetic_id === "pieces_cosmos" || item.cosmetic_id === "board_void_grid",
       purchased_at: new Date().toISOString(),
       cosmetics: item,
     }));
+    const showcasePass = createShowcaseBattlePassState();
+    const showcaseMatches = createShowcaseMatchHistory();
+    const showcaseCampaign = createShowcaseCampaignProgress();
+    const showcaseFriends = createShowcaseFriendsData();
     const session = {
       access_token: "",
       refresh_token: "",
@@ -3250,7 +3333,12 @@ export function App() {
     setProfile(adminProfile);
     setInventoryItems(adminInventory);
     setVaultItems(DEFAULT_VAULT_ITEMS);
-    setBattlePass(createCompletedBattlePassState());
+    setBattlePass(showcasePass);
+    setMatchHistory(showcaseMatches);
+    setCampaignProgressState(showcaseCampaign);
+    setFriendsData(showcaseFriends);
+    setPlayerSearchResults([]);
+    setMatchReport(showcaseMatches[0]);
     setOnboardingOpen(false);
     setLoadout({
       factionId: adminProfile.saved_loadouts?.[0]?.faction_id || "nomads",
@@ -3261,8 +3349,13 @@ export function App() {
     saveJson("dama-profile", adminProfile);
     saveJson("dama-inventory", adminInventory);
     saveJson("dama-vault-items", DEFAULT_VAULT_ITEMS);
-    saveJson(battlePassStorageKey(adminUserId), createCompletedBattlePassState());
-    addNotification("Admin mode enabled", "All factions, abilities, currencies, and progression rewards unlocked.", "success");
+    saveJson(battlePassStorageKey(adminUserId), showcasePass);
+    saveJson("dama-match-history", showcaseMatches);
+    saveJson("dama-campaign-progress", showcaseCampaign);
+    saveJson("dama-campaign-progress-nomads", showcaseCampaign);
+    saveJson("dama-friends", showcaseFriends);
+    saveJson("dama-last-match-report", showcaseMatches[0]);
+    addNotification("Demo commander ready", "Showcase progress loaded — campaign, coach report, and Battle Pass are ready to explore.", "success");
     setView(nextView);
   }
 
@@ -4729,7 +4822,7 @@ export function App() {
     if (!isAuthenticated) {
       return withBackNavigation(<GuestLockedScreen feature="Commander Profile" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
     }
-    return withBackNavigation(<CommanderProfileScreen profile={profile} factions={factions} message={economyMessage} connectionHealth={connectionHealth} isSaving={profileBusy} onSave={saveProfilePatch} onHome={() => setView("nexus")} onVault={() => setView("vault")} />);
+    return withBackNavigation(<CommanderProfileScreen profile={profile} factions={factions} message={economyMessage} connectionHealth={connectionHealth} isSaving={profileBusy} onSave={saveProfilePatch} onHome={() => setView("nexus")} onVault={() => setView("collection")} />);
   }
 
   if (view === "settings") {
@@ -4739,18 +4832,11 @@ export function App() {
     return withBackNavigation(<SettingsScreen profile={profile} message={economyMessage} isSaving={profileBusy} onSave={saveProfilePatch} onHome={() => setView("nexus")} onTestSound={(name) => playSound(name)} onTestVoice={() => speakLine("Aether systems online.")} />);
   }
 
-  if (view === "vault") {
+  if (view === "vault" || view === "inventory" || view === "collection") {
     if (!isAuthenticated) {
-      return withBackNavigation(<GuestLockedScreen feature="The Vault" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
+      return withBackNavigation(<GuestLockedScreen feature="Collection" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
     }
-    return withBackNavigation(<VaultScreen profile={profile} factions={factions} items={vaultItems} inventoryItems={inventoryItems} message={economyMessage} busyItemId={vaultBusyId} onPurchase={purchaseCosmetic} onHome={() => setView("nexus")} onInventory={() => setView("inventory")} />);
-  }
-
-  if (view === "inventory") {
-    if (!isAuthenticated) {
-      return withBackNavigation(<GuestLockedScreen feature="Inventory" onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
-    }
-    return withBackNavigation(<InventoryScreen items={inventoryItems} equippedCosmetics={equippedCosmetics} boardPreferences={boardPreferences} message={economyMessage} busyItemId={inventoryBusyId} onEquip={equipCosmetic} onEquipBasicPiece={equipBasicPieceSkin} onHome={() => setView("nexus")} onVault={() => setView("vault")} onViewMode={setBoardViewMode} onPieceColor={setPieceColor} onSavePreferences={saveBoardPreferences} onPlay={() => { startMatch("ai", campaignLevel, { variant: gameVariant, aiLevel, aiProfileId }); setView("game"); }} />);
+    return withBackNavigation(<CollectionScreen initialTab={view === "inventory" ? "equip" : "shop"} profile={profile} factions={factions} vaultItems={vaultItems} inventoryItems={inventoryItems} equippedCosmetics={equippedCosmetics} boardPreferences={boardPreferences} message={economyMessage} vaultBusyId={vaultBusyId} inventoryBusyId={inventoryBusyId} onPurchase={purchaseCosmetic} onEquip={equipCosmetic} onEquipBasicPiece={equipBasicPieceSkin} onHome={() => setView("nexus")} onViewMode={setBoardViewMode} onPieceColor={setPieceColor} onSavePreferences={saveBoardPreferences} onCodex={() => setView("factions")} onPlay={() => { startMatch("ai", campaignLevel, { variant: gameVariant, aiLevel, aiProfileId }); setView("game"); }} />);
   }
 
   if (view === "loadout") {
@@ -4769,7 +4855,7 @@ export function App() {
           onBack={() => setView(pendingMatchSetup ? "skirmish-config" : "nexus")}
           onLockedFaction={handleLockedFaction}
           onVault={() => setProModalOpen(true)}
-          onProgression={() => setView("progression")}
+          onProgression={() => setView("progress")}
           onInitialize={(nextLoadout, setup) => {
           const selectedSetup = setup || pendingMatchSetup || {
             variant: "power",
@@ -4812,9 +4898,9 @@ export function App() {
     return withBackNavigation(<FactionAbilitiesShowcase profile={profile} factions={factions} onBack={() => setView("nexus")} onLoadout={() => setView("loadout")} onProfile={() => setView("profile")} onRewards={() => addNotification("Faction rewards", "Rewards unlock as you level and complete campaign sectors.", "info")} />);
   }
 
-  if (view === "progression" || view === "battle-pass") {
+  if (view === "progression" || view === "battle-pass" || view === "progress") {
     if (!isAuthenticated) {
-      return withBackNavigation(<GuestLockedScreen feature={view === "battle-pass" ? "Battle Pass" : "Progression"} onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
+      return withBackNavigation(<GuestLockedScreen feature={view === "battle-pass" ? "Battle Pass" : "Progress"} onHome={() => setView("nexus")} onLogin={() => setView("register")} />);
     }
     return withBackNavigation(
       <>
@@ -4828,7 +4914,7 @@ export function App() {
           battlePass={battlePass}
           busyAchievementId={achievementBusyId}
           onBack={() => setView("nexus")}
-          onVault={() => setView("vault")}
+          onVault={() => setView("collection")}
           onClaim={claimAchievement}
           onPro={() => setProModalOpen(true)}
         />
@@ -4849,10 +4935,10 @@ export function App() {
         vaultItems={vaultItems}
         matchHistory={matchHistory}
         onHome={() => setView("nexus")}
-        onVault={() => setView("vault")}
+        onVault={() => setView("collection")}
         onLoadout={() => setView("loadout")}
         onCodex={() => setView("factions")}
-        onProgression={() => setView("progression")}
+        onProgression={() => setView("progress")}
         onPlayAi={() => {
           startMatch("ai", campaignLevel, { variant: "power", aiLevel: "coach", aiProfileId: "nexus_prime" });
           setView("game");
@@ -4917,7 +5003,7 @@ export function App() {
           onIron={() => openCampaignPath("iron_guard")}
           onSun={() => openCampaignPath("sun_court")}
           onVoid={() => openCampaignPath("void_order")}
-          onProgression={() => setView("progression")}
+          onProgression={() => setView("progress")}
           onVault={() => {
             setEconomyMessage(profile.unlocked_factions?.includes("void_order") ? "Void Order is already unlocked." : "Void Order is positioned as an Aether Pro campaign path.");
             setProModalOpen(true);
@@ -5062,7 +5148,7 @@ export function App() {
   }
 
   if (view === "postmatch") {
-    return withBackNavigation(<PostMatchSummary profile={profile} report={matchReport} isVictory={postMatchVictory} onHome={() => setView("nexus")} onVault={() => { setDemoGuideStep("vault"); setView("vault"); }} onPowerSkirmish={() => { setPendingMatchSetup(null); setView("skirmish-config"); }} onRetryMoment={() => setEconomyMessage("Retry Moment is ready below the coach report. Step through the replay and try the better move.")} onRematch={() => {
+    return withBackNavigation(<PostMatchSummary profile={profile} report={matchReport} isVictory={postMatchVictory} onHome={() => setView("nexus")} onVault={() => { setDemoGuideStep("collection"); setView("collection"); }} onPowerSkirmish={() => { setPendingMatchSetup(null); setView("skirmish-config"); }} onRetryMoment={() => setEconomyMessage("Retry Moment is ready below the coach report. Step through the replay and try the better move.")} onRematch={() => {
       const stats = normalizeMatchReport(matchReport, DEFAULT_MATCH_REPORT);
       if (stats.gameMode === "campaign" && stats.campaignLevelId) {
         const level = campaign?.levels?.find((item) => item.id === stats.campaignLevelId) || campaignLevel;
@@ -5151,9 +5237,9 @@ export function App() {
         <div className="panel-brand">
           <AetherLogoMark className="panel-logo-mark" />
           <div>
-            <p className="eyebrow">nFactorial startup prototype</p>
+            <p className="eyebrow">Asymmetrical tactics showcase</p>
             <h1>{APP_NAME}</h1>
-            <p className="muted">Fast checkers duels with AI sparring, faction loadouts, and comeback campaign puzzles.</p>
+            <p className="muted">Asymmetrical checkers with faction powers, AI coaching, and collectible board identity.</p>
           </div>
           <button className="nexus-back" onClick={() => setView("nexus")}>Nexus Core</button>
         </div>
@@ -5418,7 +5504,7 @@ function NexusGatewayRegistration({ profile, error, isBusy = false, showAdminDem
 
           {error && <p className="gateway-error">{error}</p>}
           <button className="gateway-submit" type="submit" disabled={isBusy}>{isBusy ? (authMode === "login" ? "Accessing Nexus..." : "Creating Commander...") : (authMode === "login" ? "Access Nexus" : "Create Commander")}</button>
-          {showAdminDemo && <button className="gateway-admin" type="button" onClick={onAdminAccess} disabled={isBusy}>Admin Demo Access</button>}
+          {showAdminDemo && <button className="gateway-admin" type="button" onClick={onAdminAccess} disabled={isBusy}>Explore as Demo Commander</button>}
           <button className="gateway-login" type="button" onClick={onBack} disabled={isBusy}>{"<"} Back to Nexus</button>
         </form>
 
@@ -5441,8 +5527,7 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
   const friends = isAuthenticated ? normalizeFriendsData(friendsData).friends.slice(0, 3) : [];
   const searchResults = isAuthenticated ? playerSearchResults.slice(0, 3) : [];
   const streaks = normalizeStreaks(profile.streaks);
-  const nowPlaying = musicTrackTitle(profile.settings?.musicTrack);
-  const liveState = demoMode ? "Demo" : connectionHealth.api === "online" && connectionHealth.database === "online" ? "Live" : "Syncing";
+  const liveState = demoMode ? "Showcase" : connectionHealth.api === "online" && connectionHealth.database === "online" ? "Live" : "Syncing";
   useEffect(() => {
     localStorage.setItem("dama-nexus-social-collapsed", friendsCollapsed ? "true" : "false");
   }, [friendsCollapsed]);
@@ -5488,10 +5573,8 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
                         </b>
                       </span>
                     </header>
-                    {profile.is_admin && <button onClick={() => selectProfileAction(() => onNavigate("admin-dashboard"))}>Admin Dashboard</button>}
+                    {profile.is_admin && SHOW_ADMIN_DEMO && <button onClick={() => selectProfileAction(() => onNavigate("admin-dashboard"))}>Admin Dashboard</button>}
                     <button onClick={() => selectProfileAction(onProfile)}>Commander Profile</button>
-                    <button onClick={() => selectProfileAction(() => onNavigate("progression"))}>Statistics</button>
-                    <button onClick={() => selectProfileAction(() => latestMatch && onMatchSummary(latestMatch))} disabled={!latestMatch}>Review Previous Matches</button>
                     <button className="profile-menu-logout" onClick={() => selectProfileAction(onLogout)}>Logout</button>
                   </aside>
                 )}
@@ -5520,36 +5603,46 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
         <h2>Nexus Core</h2>
         <section className="nexus-product-loop">
           <div>
-            <span>{demoGuideStep === "nexus" ? "nFactorial judge demo" : `Demo step: ${demoGuideStep}`}</span>
+            <span>{demoGuideStep === "nexus" ? "portfolio showcase" : `Demo step: ${demoGuideStep}`}</span>
             <strong>Build loadout. Win match. Review mistakes. Claim rewards.</strong>
           </div>
           <div>
-            <button className="demo-start-button" onClick={onStartDemo}>Start Demo</button>
             <button onClick={() => onNavigate("skirmish")}>Start Skirmish</button>
-            <button onClick={() => onNavigate("loadout")}>Tune Loadout</button>
-            <button onClick={() => onNavigate("battle-pass")}>Claim Rewards</button>
+            <button className="demo-start-button" onClick={onStartDemo}>Guided Tour</button>
           </div>
         </section>
-        <nav className="nexus-router" aria-label="Core navigation">
-          {NEXUS_ROUTES.map((route) => (
-            <div key={route.id} className={`nexus-route-group ${route.children ? "has-subroutes" : ""}`}>
-              <button className={`nexus-route ${route.id} ${!isAuthenticated && AUTH_REQUIRED_ROUTES.has(route.id) ? "locked" : ""}`} onClick={() => onNavigate(route.id)}>
-                <span className="nexus-iconbox"><NexusMenuIcon name={route.icon} /></span>
-                <strong>{route.label}</strong>
-                <small>{!isAuthenticated && AUTH_REQUIRED_ROUTES.has(route.id) ? "Login required" : route.subtext}</small>
-              </button>
-              {route.children && (
-                <div className="nexus-subroutes">
-                  {route.children.map((child) => (
-                    <button key={child.id} className={`nexus-subroute ${child.id} ${!isAuthenticated && AUTH_REQUIRED_ROUTES.has(child.id) ? "locked" : ""}`} onClick={() => onNavigate(child.id)}>
-                      <span><NexusMenuIcon name={child.icon} /></span>
-                      <strong>{child.label}</strong>
-                      <small>{!isAuthenticated && AUTH_REQUIRED_ROUTES.has(child.id) ? "Login required" : child.subtext}</small>
+        <nav className="nexus-router grouped" aria-label="Core navigation">
+          {NEXUS_GROUPS.map((group) => (
+            <section key={group.id} className="nexus-nav-section" aria-label={group.label}>
+              <div className="nexus-nav-section-head">
+                <span>{group.label}</span>
+                <small>{group.hint}</small>
+              </div>
+              {group.routeIds.map((routeId) => {
+                const route = nexusRoutesById(routeId);
+                if (!route) return null;
+                return (
+                  <div key={route.id} className={`nexus-route-group ${route.children ? "has-subroutes" : ""}`}>
+                    <button className={`nexus-route ${route.id} ${!isAuthenticated && AUTH_REQUIRED_ROUTES.has(route.id) ? "locked" : ""}`} onClick={() => onNavigate(route.id)}>
+                      <span className="nexus-iconbox"><NexusMenuIcon name={route.icon} /></span>
+                      <strong>{route.label}</strong>
+                      <small>{!isAuthenticated && AUTH_REQUIRED_ROUTES.has(route.id) ? "Login required" : route.subtext}</small>
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {route.children && (
+                      <div className="nexus-subroutes">
+                        {route.children.map((child) => (
+                          <button key={child.id} className={`nexus-subroute ${child.id} ${!isAuthenticated && AUTH_REQUIRED_ROUTES.has(child.id) ? "locked" : ""}`} onClick={() => onNavigate(child.id)}>
+                            <span><NexusMenuIcon name={child.icon} /></span>
+                            <strong>{child.label}</strong>
+                            <small>{!isAuthenticated && AUTH_REQUIRED_ROUTES.has(child.id) ? "Login required" : child.subtext}</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
           ))}
         </nav>
         {isAuthenticated && <FactionMasteryBlock profile={profile} factions={factions} loadout={loadout} matchHistory={recentMatches} campaignProgress={campaignProgress} onNavigate={onNavigate} />}
@@ -5636,15 +5729,7 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
         </section>
       </aside>
 
-      <footer className="nexus-footer">
-        <span><i />EU servers: stable</span>
-        <span>Season 4: 12 days left</span>
-        <div className="music-player">
-          <b>Now playing</b>
-          <strong>{nowPlaying}</strong>
-          <div className="waveform"><i /><i /><i /><i /><i /></div>
-        </div>
-      </footer>
+      <FooterPlayer trackId={profile.settings?.musicTrack} />
     </main>
   );
 }
@@ -5838,6 +5923,85 @@ function SettingsScreen({ profile, message, isSaving = false, onSave, onHome, on
           </div>
         </article>
       </section>
+    </main>
+  );
+}
+
+// ── Phase 1 cleanup: single shared footer player (replaces 3+ music-player copies) ──
+function FooterPlayer({ trackId, status = "Showcase build: stable", season = "Founder Season: live" }) {
+  return (
+    <footer className="nexus-footer">
+      <span><i />{status}</span>
+      <span>{season}</span>
+      <div className="music-player">
+        <b>Now playing</b>
+        <strong>{musicTrackTitle(trackId)}</strong>
+        <div className="waveform"><i /><i /><i /><i /><i /></div>
+      </div>
+    </footer>
+  );
+}
+
+// ── Phase 1 cleanup: Collection merges Vault (shop) + Inventory (equip) into one screen ──
+// Keeps VaultScreen/InventoryScreen untouched; this wrapper adds Shop|Equip tabs so the
+// hub shows 1 Collection entry instead of 2 competing shops.
+function CollectionScreen({ initialTab = "shop", profile, factions, vaultItems, inventoryItems, equippedCosmetics, boardPreferences, message, vaultBusyId, inventoryBusyId, onPurchase, onEquip, onEquipBasicPiece, onHome, onViewMode, onPieceColor, onSavePreferences, onPlay, onCodex }) {
+  const [tab, setTab] = useState(initialTab === "equip" ? "equip" : "shop");
+  useEffect(() => {
+    setTab(initialTab === "equip" ? "equip" : "shop");
+  }, [initialTab]);
+  return (
+    <main className="vault-screen collection-screen">
+      <header className="profile-topbar">
+        <button onClick={onHome}>{"<"}</button>
+        <div>
+          <small>Commander Vault / Match Appearance</small>
+          <h1>Collection</h1>
+        </div>
+        <button onClick={onCodex}>Codex</button>
+      </header>
+      <nav className="collection-tabs" aria-label="Collection tabs">
+        <button className={tab === "shop" ? "active" : ""} onClick={() => setTab("shop")}>Shop — buy with Shards</button>
+        <button className={tab === "equip" ? "active" : ""} onClick={() => setTab("equip")}>Equip — match look</button>
+      </nav>
+      <p className="collection-hint">
+        {tab === "shop"
+          ? "Buy cosmetics with Shards. Piece skins are visible to opponents; board skins stay private."
+          : "Equip what you own. 3D models work only in 3D; premium SVG skins work only in 2D."}
+      </p>
+      {tab === "shop" ? (
+        <div className="collection-embedded">
+          <VaultScreen
+            profile={profile}
+            factions={factions}
+            items={vaultItems}
+            inventoryItems={inventoryItems}
+            message={message}
+            busyItemId={vaultBusyId}
+            onPurchase={onPurchase}
+            onHome={onHome}
+            onInventory={() => setTab("equip")}
+          />
+        </div>
+      ) : (
+        <div className="collection-embedded">
+          <InventoryScreen
+            items={inventoryItems}
+            equippedCosmetics={equippedCosmetics}
+            boardPreferences={boardPreferences}
+            message={message}
+            busyItemId={inventoryBusyId}
+            onEquip={onEquip}
+            onEquipBasicPiece={onEquipBasicPiece}
+            onHome={onHome}
+            onVault={() => setTab("shop")}
+            onViewMode={onViewMode}
+            onPieceColor={onPieceColor}
+            onSavePreferences={onSavePreferences}
+            onPlay={onPlay}
+          />
+        </div>
+      )}
     </main>
   );
 }
@@ -6432,7 +6596,7 @@ function PostMatchSummary({ profile, report = DEFAULT_MATCH_REPORT, isVictory, o
         <div className="postmatch-actions">
           <button onClick={onRematch}>{isCampaignVictory ? "Replay Level" : "Rematch"}</button>
           <button onClick={onShare}>Share Recap</button>
-          {!isVictory && stats.retryMoment && <button onClick={onRetryMoment}>Retry Moment</button>}
+          {stats.retryMoment && <button onClick={onRetryMoment}>Retry Moment</button>}
           {isCampaignVictory && <button onClick={onNextCampaignLevel}>{stats.campaignNextLevelId ? "Next Level" : "Campaign Map"}</button>}
           {!isCampaignVictory && isVictory && <button onClick={onPowerSkirmish}>Try Power Skirmish</button>}
           {!isCampaignVictory && isVictory && <button onClick={onVault}>Open Vault</button>}
@@ -8028,7 +8192,6 @@ function NexusMenuIcon({ name }) {
 }
 
 function NexusFeatureScreen({ feature, onHome }) {
-  const nowPlaying = musicTrackTitle(DEFAULT_SETTINGS.musicTrack);
   return (
     <main className="nexus-core feature-core">
       <header className="nexus-topbar">
@@ -8051,15 +8214,7 @@ function NexusFeatureScreen({ feature, onHome }) {
           <button onClick={onHome}>Return to Nexus</button>
         </div>
       </section>
-      <footer className="nexus-footer">
-        <span><i />EU servers: stable</span>
-        <span>Season 4: 12 days left</span>
-        <div className="music-player">
-          <b>Now playing</b>
-          <strong>{nowPlaying}</strong>
-          <div className="waveform"><i /><i /><i /><i /><i /></div>
-        </div>
-      </footer>
+      <FooterPlayer trackId={DEFAULT_SETTINGS.musicTrack} />
     </main>
   );
 }
@@ -8182,7 +8337,6 @@ function LobbyPlayerCard({ title, player, active }) {
 }
 
 function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, playerSearchResults, profile, factions = [], loadout = DEFAULT_LOADOUT, gameVariant = "power", userId, leaderboard, leaderboardCity, onLoadout, onGameVariant, onNavigate, onHome, onProfile, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
-  const nowPlaying = musicTrackTitle(profile.settings?.musicTrack);
   return (
     <main className="ops-shell">
       <header className="nexus-topbar">
@@ -8190,7 +8344,7 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
         <div className="nexus-currencies">
           <span><b>E</b>{profile.essence}</span>
           <span><b>S</b>{profile.shards}</span>
-          {demoMode && <span className="demo-pill">Demo Mode</span>}
+          {demoMode && SHOW_ADMIN_DEMO && <span className="demo-pill">Showcase</span>}
         </div>
         <div className="nexus-actions">
           <button onClick={onHome}>NC</button>
@@ -8198,15 +8352,7 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
         </div>
       </header>
       <MultiplayerOperations isAuthenticated={isAuthenticated} friendsData={friendsData} playerSearchResults={playerSearchResults} profile={profile} factions={factions} loadout={loadout} gameVariant={gameVariant} userId={userId} leaderboard={leaderboard} leaderboardCity={leaderboardCity} onLoadout={onLoadout} onGameVariant={onGameVariant} onNotify={onNotify} onStartRoom={onStartRoom} onHostLobby={onHostLobby} onJoinLobby={onJoinLobby} onSearchPlayers={onSearchPlayers} onRequestFriend={onRequestFriend} onOpenPublicProfile={onOpenPublicProfile} onInviteFriend={onInviteFriend} onRespondRequest={onRespondRequest} onLeaderboardCity={onLeaderboardCity} />
-      <footer className="nexus-footer">
-        <span><i />EU servers: stable</span>
-        <span>Season 4: 12 days left</span>
-        <div className="music-player">
-          <b>Now playing</b>
-          <strong>{nowPlaying}</strong>
-          <div className="waveform"><i /><i /><i /><i /><i /></div>
-        </div>
-      </footer>
+      <FooterPlayer trackId={profile.settings?.musicTrack} />
     </main>
   );
 }
@@ -8222,9 +8368,11 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
   const selectedFaction = factions.find((faction) => faction.id === selectedLoadout.factionId) || factions[0];
   const selectedPassive = selectedFaction?.passives?.find((ability) => ability.id === selectedLoadout.passiveId) || selectedFaction?.passives?.[0];
   const selectedUltimate = selectedFaction?.ultimates?.find((ability) => ability.id === selectedLoadout.ultimateId) || selectedFaction?.ultimates?.[0];
-  const setupLocked = queueState.mode !== "idle";
+  const setupLocked = queueState.mode !== "idle" && queueState.mode !== "ranked-pending";
   const filteredLeaderboard = filterLeaderboardByCity(leaderboard || [], leaderboardCity);
-  const leaderboardSource = filteredLeaderboard.length ? filteredLeaderboard : normalizeLeaderboardCity(leaderboardCity) === "global" && !(leaderboard || []).length ? MULTIPLAYER_LEADERS : [];
+  // Phase 2 honesty: never show hard-coded demo leaders as if they were live rankings.
+  // Empty live data renders the honest empty state below ("No commanders from X yet").
+  const leaderboardSource = filteredLeaderboard;
   const leaders = leaderboardSource.slice(0, 5).map((row, index) => ({
     id: row.id || row.user_id || `${row.name || row.username}-${row.city || "global"}-${index}`,
     rank: index + 1,
@@ -8424,24 +8572,21 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
         />
 
         <section className="ops-section">
-          <div className="ops-title"><i />The Queue</div>
-          <div className="queue-grid">
-            <button className={`queue-card fast-card ${queueState.mode === "fast" ? "active" : ""}`} onClick={() => beginQueue("fast")}>
+          <div className="ops-title"><i />Find Match — one queue, two ladders</div>
+          <div className="queue-mode-toggle" role="tablist" aria-label="Matchmaking mode">
+            <button className={queueState.mode === "ranked" || queueState.mode === "ranked-pending" ? "" : "active"} onClick={() => !setupLocked && setQueueState({ mode: "idle", label: "Fast Match selected. Same rules, faster pairing.", roomCode: "" })} disabled={setupLocked}>Fast</button>
+            <button className={queueState.mode === "ranked" || queueState.mode === "ranked-pending" ? "active" : ""} onClick={() => !setupLocked && setQueueState({ mode: "ranked-pending", label: "Ranked selected. Competitive Elo ladder.", roomCode: "" })} disabled={setupLocked}>Ranked</button>
+          </div>
+          <div className="queue-grid single-queue">
+            <button className={`queue-card fast-card ${queueState.mode === "fast" || queueState.mode === "ranked" ? "active" : ""}`} onClick={() => beginQueue(queueState.mode === "ranked-pending" ? "ranked" : "fast")}>
               <span className="ops-icon">X</span>
-              <small>{queueVariantLabel(selectedVariant)} // ETA: 1:20</small>
-              <strong>Fast Match</strong>
+              <small>{queueVariantLabel(selectedVariant)} // {queueState.mode === "ranked-pending" || queueState.mode === "ranked" ? "Ranked Elo" : "Fast pairing"}</small>
+              <strong>{queueState.mode === "ranked-pending" || queueState.mode === "ranked" ? "Find Ranked Match" : "Find Fast Match"}</strong>
               <p>{isPowerVariant(selectedVariant) ? `${selectedFaction?.name || "Faction"} with ${selectedPassive?.name || "Passive"} and ${selectedUltimate?.name || "Ultimate"}.` : `${selectedFaction?.name || "Faction"} identity with standard checkers rules.`}</p>
               <b>Begin Search</b>
             </button>
-            <button className={`queue-card ranked-card ${queueState.mode === "ranked" ? "active" : ""}`} onClick={() => beginQueue("ranked")}>
-              <span className="ops-icon">Q</span>
-              <small>{queueVariantLabel(selectedVariant)} // ETA: 2:45</small>
-              <strong>Ranked Queue</strong>
-              <p>Competitive Elo ladder using the same selected rules and loadout as Fast Match.</p>
-              <b>Begin Search</b>
-            </button>
           </div>
-          {queueState.mode !== "idle" && <button className="queue-cancel" onClick={cancelQueue}>Cancel Queue / Room Search</button>}
+          {queueState.mode !== "idle" && queueState.mode !== "ranked-pending" && <button className="queue-cancel" onClick={cancelQueue}>Cancel Queue / Room Search</button>}
         </section>
 
         <section className="ops-section">
@@ -9101,6 +9246,9 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
   const mountRef = useRef(null);
   const latestRef = useRef({ board, selected, legalMoves, powerTargets, passiveTargets, tutorialTargets, blockedSquares, protectedSquares, markedPiece, cosmetics, pieceColors, boardPerspective, onSquare });
   const syncRef = useRef(() => {});
+  // Phase 2 resilience: WebGL can throw (no GPU, blocked context, OOM). Show an
+  // honest fallback panel instead of crashing the whole match view.
+  const [threeFailed, setThreeFailed] = useState("");
 
   useEffect(() => {
     latestRef.current = { board, selected, legalMoves, powerTargets, passiveTargets, tutorialTargets, blockedSquares, protectedSquares, markedPiece, cosmetics, pieceColors, boardPerspective, onSquare };
@@ -9110,12 +9258,19 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return undefined;
+    let renderer = null;
+    let raf = 0;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.1, 100);
     camera.position.set(0, 7.4, 7.8);
     camera.lookAt(0, 0, 0);
     const cameraTarget = new THREE.Vector3();
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (error) {
+      setThreeFailed(error?.message || "WebGL unavailable");
+      return undefined;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
@@ -9341,7 +9496,6 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
     window.addEventListener("resize", resize);
 
     let frame = 0;
-    let raf = 0;
     function animate() {
       raf = requestAnimationFrame(animate);
       frame += 1;
@@ -9359,15 +9513,26 @@ function Battlefield3DBoard({ board, selected, legalMoves, powerTargets, passive
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
-      renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
-      syncRef.current = () => {};
-      disposeBoardSkinRuntime(boardSkinState.runtime);
-      environmentTexture.dispose();
-      pmremGenerator.dispose();
-      renderer.dispose();
-      if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
+      if (renderer) {
+        renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
+        syncRef.current = () => {};
+        disposeBoardSkinRuntime(boardSkinState.runtime);
+        environmentTexture.dispose();
+        pmremGenerator.dispose();
+        renderer.dispose();
+        if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
+      }
     };
   }, []);
+
+  if (threeFailed) {
+    return (
+      <div className="battle-three-board battle-three-fallback" ref={mountRef}>
+        <strong>3D unavailable on this device</strong>
+        <span>{threeFailed}. Switch to the 2D renderer in Inventory → Equip for the same match.</span>
+      </div>
+    );
+  }
 
   return (
     <div className="battle-three-board" ref={mountRef}>
@@ -10015,7 +10180,7 @@ function createAdminProfile(currentProfile, factions = []) {
     profile_picture_url: currentProfile.profile_picture_url || "",
     favorite_faction: firstFaction?.id || "void_order",
     equipped_piece_skin: "pieces_cosmos",
-    equipped_board_skin: "",
+    equipped_board_skin: "board_void_grid",
     equipped_badge: "badge_global_champion",
     settings: normalizeSettings({ ...currentProfile.settings, onboardingCompleted: true }),
   });
@@ -10424,6 +10589,109 @@ function createCompletedBattlePassState(date = new Date()) {
       xp_claimed: true,
     })),
   }, date);
+}
+
+function createShowcaseBattlePassState(date = new Date()) {
+  // Admissions showcase: mid-season progress (Tier 5, ~40% to Tier 6) with a
+  // mix of complete/in-progress missions so the Battle Pass photographs well.
+  // Completed pass (10/10, 100%) looks finished and tells no story.
+  const missions = createBattlePassMissionState(date).map((mission, index) => {
+    if (index < 3) {
+      return { ...mission, progress_count: mission.target_count, is_completed: true, xp_claimed: true };
+    }
+    if (index < 5) {
+      return { ...mission, progress_count: Math.max(1, Math.floor(mission.target_count / 2)), is_completed: false, xp_claimed: false };
+    }
+    return mission;
+  });
+  return normalizeBattlePassState({
+    season_id: BATTLE_PASS_SEASON.id,
+    xp: 1050,
+    unlocked_tiers: [1, 2, 3, 4, 5],
+    missions,
+  }, date);
+}
+
+function createShowcaseMatchHistory() {
+  // Two curated wins so Nexus recent-matches + profile never photograph empty.
+  const now = new Date().toISOString();
+  return [
+    {
+      ...DEFAULT_MATCH_REPORT,
+      match_id: "showcase-nomads-dash",
+      result: "win",
+      isVictory: true,
+      opponent: "Smart AI",
+      difficulty: "Smart",
+      gameMode: "power",
+      captured: 6,
+      lost: 2,
+      turns: 24,
+      shards: 120,
+      essence: 25,
+      exp: 180,
+      review: [
+        "Strong tempo: Dash created a capture chain through the center.",
+        "Open Roads kept the scout safe before the breakthrough.",
+        "Crown the far runner early — promotion pressure decided it.",
+      ],
+      bestMove: "c1-e3 Dash into capture chain",
+      mistake: "Move 14 drifted to the rim — center control slipped for two turns.",
+      abilityImpact: "Dash bent the position by teleporting behind the screen.",
+      retryMoment: {
+        title: "Convert The Advantage Again",
+        prompt: "Move 14: c3-d4 kept material safe but gave up the center. Replay the position and find the forcing lane.",
+        betterHint: "Try to improve piece safety, center control, or a future capture threat.",
+        tacticalTip: "Central squares make double jumps easier because more diagonals stay connected.",
+        expected: "center",
+        board: createInitialBoard(),
+        focusAbilityId: "dash",
+      },
+      campaignLevelName: "",
+      created_at: now,
+    },
+    {
+      ...DEFAULT_MATCH_REPORT,
+      match_id: "showcase-void-shift",
+      result: "win",
+      isVictory: true,
+      opponent: "Smart AI",
+      difficulty: "Smart",
+      gameMode: "power",
+      captured: 5,
+      lost: 3,
+      turns: 31,
+      shards: 100,
+      essence: 20,
+      exp: 150,
+      review: [
+        "Phase Shift through the trap line opened the winning diagonal.",
+        "Collapse denied the rival landing square at the right moment.",
+      ],
+      bestMove: "c3-f6 Phase Shift",
+      abilityImpact: "Phase Shift bent the position by teleporting through blockers.",
+      created_at: now,
+    },
+  ];
+}
+
+function createShowcaseCampaignProgress() {
+  // First three Nomads lessons cleared with 3 stars so the campaign map reads well.
+  return {
+    completed_levels: ["road_behind", "salt_road_sprint", "dust_trap"],
+    current_level_id: "storm_gate",
+    stars_earned: 9,
+    best_clear_turns: { road_behind: 12, salt_road_sprint: 14, dust_trap: 11 },
+  };
+}
+
+function createShowcaseFriendsData() {
+  // Curated social graph so Nexus + Multiplayer never photograph empty.
+  return {
+    friends: NEXUS_FRIENDS.map((friend) => ({ ...friend })),
+    incoming: [],
+    outgoing: [],
+  };
 }
 
 function createBattlePassMissionState(date = new Date()) {

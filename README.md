@@ -2,6 +2,8 @@
 
 **Asymmetrical checkers with faction powers, AI coaching, and collectible board identity.**
 
+![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=0b0c10) ![Vite](https://img.shields.io/badge/Vite-6-ffd62e?logo=vite&logoColor=0b0c10) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3ecf8e?logo=supabase&logoColor=0b0c10) ![Three.js](https://img.shields.io/badge/Three.js-000000?logo=threedotjs&logoColor=white)
+
 A full-stack tactics game: real checkers rules (forced captures, multi-jumps, flying kings), four playable factions with unique powers, a 3D battlefield + fast 2D renderer, scripted campaign lessons, an AI coach that reviews every match, and a Vault / Battle Pass economy with persistent profiles.
 
 ## Try It in 2 Minutes
@@ -432,7 +434,8 @@ erDiagram
     factions ||--o{ campaign_progress : tracks
 ```
 
-## Run Locally
+<details>
+<summary><strong>Run Locally</strong> (backend first, then frontend)</summary>
 
 ### Environment
 
@@ -495,8 +498,10 @@ http://localhost:5173
 > The Vite dev server proxies `/api/*` to `http://localhost:8000`. If you see
 > `[vite] http proxy error: ECONNREFUSED` in the terminal, the backend isn't
 > running — start it first. If the backend is offline, the frontend falls back
-> to local demo content (with an on-screen "Backend offline" notice) so the UI
+> to local demo content (with an on-screen "Showcase build" notice) so the UI
 > can still be explored.
+
+</details>
 
 ## Demo Access
 

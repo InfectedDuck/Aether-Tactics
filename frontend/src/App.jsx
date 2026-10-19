@@ -1452,7 +1452,13 @@ export function App() {
   const [versusMatchup, setVersusMatchup] = useState(null);
   const [matchHistory, setMatchHistory] = useState(() => loadJson("dama-match-history", []));
   const [campaignProgress, setCampaignProgressState] = useState(() => loadJson("dama-campaign-progress", DEFAULT_CAMPAIGN_PROGRESS));
-  const [battlePass, setBattlePass] = useState(() => createBattlePassState());
+  const [battlePass, setBattlePass] = useState(() => {
+    // Showcase persistence: survive full reloads (screenshot capture uses page.goto)
+    // by hydrating from the same per-owner key the sync effect uses.
+    const session = restoreAuthSession();
+    const ownerId = hasPlayableSession(session) ? session.user.id : "guest";
+    return normalizeBattlePassState(loadJson(battlePassStorageKey(ownerId), createBattlePassState()));
+  });
   const initialRouteRef = useRef(null);
   if (!initialRouteRef.current) {
     initialRouteRef.current = currentRouteFromLocation();
@@ -1929,6 +1935,11 @@ export function App() {
   }, [activeUserId, isAuthenticated, isLocalSession, campaignFactionId]);
 
   useEffect(() => {
+    // Showcase silence: local/demo sessions use bundled leaderboard content.
+    // Never paint sync errors over screenshot surfaces.
+    if (isLocalSession) {
+      return;
+    }
     getLiveLeaderboard(leaderboardCity, 10)
       .then((payload) => {
         if (payload.rows?.length) {
@@ -1936,7 +1947,7 @@ export function App() {
         }
       })
       .catch((error) => setScreenMessage("Leaderboard sync", getReadableError(error, "Unable to refresh leaderboard.")));
-  }, [leaderboardCity, activeUserId]);
+  }, [leaderboardCity, activeUserId, isLocalSession]);
 
   useEffect(() => {
     let active = true;

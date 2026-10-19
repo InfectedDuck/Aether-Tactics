@@ -55,13 +55,10 @@ shows local content — expected for screenshots.
 | `01-nexus-core-menu.jpg` | `/menu` | Nexus Core hub, Play/Collection/Progress/System groups |
 | `02-skirmish-config.jpg` | `/skirmish` | Classic vs Power, AI difficulties, loadout |
 | `03-battlefield-3d.jpg` | `/play/ai` | 3D board mid-match, Cosmos skins, hints |
-| `03b-battlefield-shell.jpg` | `/battlefield` | 3D shell viewer |
 | `05-campaign-trails.jpg` | `/campaign` | Faction campaign paths |
-| `05b-campaign-map.jpg` | `/campaign/nomads` | Nomads sector map |
 | `06-daily-tactic.jpg` | `/daily` | Daily puzzle, streak |
 | `07-coach-report.jpg` | `/match/summary` | Post-match coach report |
 | `09-collection-shop.jpg` | `/collection` | Merged Vault shop + Equip tabs |
-| `11-progress.jpg` | `/progress` | Level tree, achievements |
 | `11b-battle-pass.jpg` | `/battle-pass` | Founder season lanes/tiers |
 | `12-multiplayer.jpg` | `/multiplayer` | Single queue (Fast/Ranked), private lobbies, leaderboard |
 | `13-profile.jpg` | `/profile` | Commander profile |

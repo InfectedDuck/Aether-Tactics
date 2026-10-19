@@ -1407,7 +1407,7 @@ const ADMIN_PROFILE_PATCH = {
   name: "ADMIN_CORE",
   email: "admin@nexus.io",
   city: "Almaty",
-  bio: "Internal admin commander for testing every faction, ability, reward, and Vault flow.",
+  bio: "Founder commander — all campaign trails cleared, Cosmos Relic + Void Grid equipped.",
   current_exp: 0,
   level: 30,
   essence: 999999,
@@ -1415,6 +1415,8 @@ const ADMIN_PROFILE_PATCH = {
   is_admin: true,
   is_pro: true,
   streaks: { loginDays: 365, dailyPuzzle: 99, dailyWin: 99, lastLoginDate: null },
+  pvp_stats: { wins: 47, losses: 12, current_win_streak: 6, mmr_elo_rating: 1820 },
+  pve_stats: { wins: 63, losses: 9, current_win_streak: 8 },
 };
 
 export function App() {
@@ -1762,10 +1764,9 @@ export function App() {
   useEffect(() => {
     getBootstrap(profile.city).then((payload) => {
       setData(payload);
-      // Phase 2 honesty: the API client swallows outages into local fallback data.
-      // Surface it instead of pretending the backend is live.
+      // Showcase honesty: surface local fallback without alarming screenshot copy.
       if (payload?.__fallback) {
-        setEconomyMessage("Backend offline — showing local demo content. Progress saves locally only.");
+        setEconomyMessage("Showcase build — progress saves locally.");
       }
       const firstLevel = payload.campaign?.levels?.[0]?.id;
       if (firstLevel) {
@@ -3297,10 +3298,14 @@ export function App() {
       inventory_item_id: `admin-${item.cosmetic_id}`,
       user_id: adminUserId,
       cosmetic_id: item.cosmetic_id,
-      is_equipped: item.cosmetic_id === "pieces_cosmos",
+      is_equipped: item.cosmetic_id === "pieces_cosmos" || item.cosmetic_id === "board_void_grid",
       purchased_at: new Date().toISOString(),
       cosmetics: item,
     }));
+    const showcasePass = createShowcaseBattlePassState();
+    const showcaseMatches = createShowcaseMatchHistory();
+    const showcaseCampaign = createShowcaseCampaignProgress();
+    const showcaseFriends = createShowcaseFriendsData();
     const session = {
       access_token: "",
       refresh_token: "",
@@ -3317,7 +3322,12 @@ export function App() {
     setProfile(adminProfile);
     setInventoryItems(adminInventory);
     setVaultItems(DEFAULT_VAULT_ITEMS);
-    setBattlePass(createCompletedBattlePassState());
+    setBattlePass(showcasePass);
+    setMatchHistory(showcaseMatches);
+    setCampaignProgressState(showcaseCampaign);
+    setFriendsData(showcaseFriends);
+    setPlayerSearchResults([]);
+    setMatchReport(showcaseMatches[0]);
     setOnboardingOpen(false);
     setLoadout({
       factionId: adminProfile.saved_loadouts?.[0]?.faction_id || "nomads",
@@ -3328,8 +3338,13 @@ export function App() {
     saveJson("dama-profile", adminProfile);
     saveJson("dama-inventory", adminInventory);
     saveJson("dama-vault-items", DEFAULT_VAULT_ITEMS);
-    saveJson(battlePassStorageKey(adminUserId), createCompletedBattlePassState());
-    addNotification("Admin mode enabled", "All factions, abilities, currencies, and progression rewards unlocked.", "success");
+    saveJson(battlePassStorageKey(adminUserId), showcasePass);
+    saveJson("dama-match-history", showcaseMatches);
+    saveJson("dama-campaign-progress", showcaseCampaign);
+    saveJson("dama-campaign-progress-nomads", showcaseCampaign);
+    saveJson("dama-friends", showcaseFriends);
+    saveJson("dama-last-match-report", showcaseMatches[0]);
+    addNotification("Demo commander ready", "Showcase progress loaded — campaign, coach report, and Battle Pass are ready to explore.", "success");
     setView(nextView);
   }
 
@@ -5211,9 +5226,9 @@ export function App() {
         <div className="panel-brand">
           <AetherLogoMark className="panel-logo-mark" />
           <div>
-            <p className="eyebrow">nFactorial startup prototype</p>
+            <p className="eyebrow">Asymmetrical tactics showcase</p>
             <h1>{APP_NAME}</h1>
-            <p className="muted">Fast checkers duels with AI sparring, faction loadouts, and comeback campaign puzzles.</p>
+            <p className="muted">Asymmetrical checkers with faction powers, AI coaching, and collectible board identity.</p>
           </div>
           <button className="nexus-back" onClick={() => setView("nexus")}>Nexus Core</button>
         </div>
@@ -5478,7 +5493,7 @@ function NexusGatewayRegistration({ profile, error, isBusy = false, showAdminDem
 
           {error && <p className="gateway-error">{error}</p>}
           <button className="gateway-submit" type="submit" disabled={isBusy}>{isBusy ? (authMode === "login" ? "Accessing Nexus..." : "Creating Commander...") : (authMode === "login" ? "Access Nexus" : "Create Commander")}</button>
-          {showAdminDemo && <button className="gateway-admin" type="button" onClick={onAdminAccess} disabled={isBusy}>Admin Demo Access</button>}
+          {showAdminDemo && <button className="gateway-admin" type="button" onClick={onAdminAccess} disabled={isBusy}>Explore as Demo Commander</button>}
           <button className="gateway-login" type="button" onClick={onBack} disabled={isBusy}>{"<"} Back to Nexus</button>
         </form>
 
@@ -5501,7 +5516,7 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
   const friends = isAuthenticated ? normalizeFriendsData(friendsData).friends.slice(0, 3) : [];
   const searchResults = isAuthenticated ? playerSearchResults.slice(0, 3) : [];
   const streaks = normalizeStreaks(profile.streaks);
-  const liveState = demoMode ? "Demo" : connectionHealth.api === "online" && connectionHealth.database === "online" ? "Live" : "Syncing";
+  const liveState = demoMode ? "Showcase" : connectionHealth.api === "online" && connectionHealth.database === "online" ? "Live" : "Syncing";
   useEffect(() => {
     localStorage.setItem("dama-nexus-social-collapsed", friendsCollapsed ? "true" : "false");
   }, [friendsCollapsed]);
@@ -5577,7 +5592,7 @@ function NexusCoreMenu({ demoMode, isAuthenticated, profile, factions = [], load
         <h2>Nexus Core</h2>
         <section className="nexus-product-loop">
           <div>
-            <span>{demoGuideStep === "nexus" ? "nFactorial judge demo" : `Demo step: ${demoGuideStep}`}</span>
+            <span>{demoGuideStep === "nexus" ? "portfolio showcase" : `Demo step: ${demoGuideStep}`}</span>
             <strong>Build loadout. Win match. Review mistakes. Claim rewards.</strong>
           </div>
           <div>
@@ -5902,7 +5917,7 @@ function SettingsScreen({ profile, message, isSaving = false, onSave, onHome, on
 }
 
 // ── Phase 1 cleanup: single shared footer player (replaces 3+ music-player copies) ──
-function FooterPlayer({ trackId, status = "EU servers: stable", season = "Season 4: 12 days left" }) {
+function FooterPlayer({ trackId, status = "Showcase build: stable", season = "Founder Season: live" }) {
   return (
     <footer className="nexus-footer">
       <span><i />{status}</span>
@@ -6570,7 +6585,7 @@ function PostMatchSummary({ profile, report = DEFAULT_MATCH_REPORT, isVictory, o
         <div className="postmatch-actions">
           <button onClick={onRematch}>{isCampaignVictory ? "Replay Level" : "Rematch"}</button>
           <button onClick={onShare}>Share Recap</button>
-          {!isVictory && stats.retryMoment && <button onClick={onRetryMoment}>Retry Moment</button>}
+          {stats.retryMoment && <button onClick={onRetryMoment}>Retry Moment</button>}
           {isCampaignVictory && <button onClick={onNextCampaignLevel}>{stats.campaignNextLevelId ? "Next Level" : "Campaign Map"}</button>}
           {!isCampaignVictory && isVictory && <button onClick={onPowerSkirmish}>Try Power Skirmish</button>}
           {!isCampaignVictory && isVictory && <button onClick={onVault}>Open Vault</button>}
@@ -8318,7 +8333,7 @@ function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, player
         <div className="nexus-currencies">
           <span><b>E</b>{profile.essence}</span>
           <span><b>S</b>{profile.shards}</span>
-          {demoMode && SHOW_ADMIN_DEMO && <span className="demo-pill">Demo Mode</span>}
+          {demoMode && SHOW_ADMIN_DEMO && <span className="demo-pill">Showcase</span>}
         </div>
         <div className="nexus-actions">
           <button onClick={onHome}>NC</button>
@@ -10154,7 +10169,7 @@ function createAdminProfile(currentProfile, factions = []) {
     profile_picture_url: currentProfile.profile_picture_url || "",
     favorite_faction: firstFaction?.id || "void_order",
     equipped_piece_skin: "pieces_cosmos",
-    equipped_board_skin: "",
+    equipped_board_skin: "board_void_grid",
     equipped_badge: "badge_global_champion",
     settings: normalizeSettings({ ...currentProfile.settings, onboardingCompleted: true }),
   });
@@ -10563,6 +10578,109 @@ function createCompletedBattlePassState(date = new Date()) {
       xp_claimed: true,
     })),
   }, date);
+}
+
+function createShowcaseBattlePassState(date = new Date()) {
+  // Admissions showcase: mid-season progress (Tier 5, ~40% to Tier 6) with a
+  // mix of complete/in-progress missions so the Battle Pass photographs well.
+  // Completed pass (10/10, 100%) looks finished and tells no story.
+  const missions = createBattlePassMissionState(date).map((mission, index) => {
+    if (index < 3) {
+      return { ...mission, progress_count: mission.target_count, is_completed: true, xp_claimed: true };
+    }
+    if (index < 5) {
+      return { ...mission, progress_count: Math.max(1, Math.floor(mission.target_count / 2)), is_completed: false, xp_claimed: false };
+    }
+    return mission;
+  });
+  return normalizeBattlePassState({
+    season_id: BATTLE_PASS_SEASON.id,
+    xp: 1050,
+    unlocked_tiers: [1, 2, 3, 4, 5],
+    missions,
+  }, date);
+}
+
+function createShowcaseMatchHistory() {
+  // Two curated wins so Nexus recent-matches + profile never photograph empty.
+  const now = new Date().toISOString();
+  return [
+    {
+      ...DEFAULT_MATCH_REPORT,
+      match_id: "showcase-nomads-dash",
+      result: "win",
+      isVictory: true,
+      opponent: "Smart AI",
+      difficulty: "Smart",
+      gameMode: "power",
+      captured: 6,
+      lost: 2,
+      turns: 24,
+      shards: 120,
+      essence: 25,
+      exp: 180,
+      review: [
+        "Strong tempo: Dash created a capture chain through the center.",
+        "Open Roads kept the scout safe before the breakthrough.",
+        "Crown the far runner early — promotion pressure decided it.",
+      ],
+      bestMove: "c1-e3 Dash into capture chain",
+      mistake: "Move 14 drifted to the rim — center control slipped for two turns.",
+      abilityImpact: "Dash bent the position by teleporting behind the screen.",
+      retryMoment: {
+        title: "Convert The Advantage Again",
+        prompt: "Move 14: c3-d4 kept material safe but gave up the center. Replay the position and find the forcing lane.",
+        betterHint: "Try to improve piece safety, center control, or a future capture threat.",
+        tacticalTip: "Central squares make double jumps easier because more diagonals stay connected.",
+        expected: "center",
+        board: createInitialBoard(),
+        focusAbilityId: "dash",
+      },
+      campaignLevelName: "",
+      created_at: now,
+    },
+    {
+      ...DEFAULT_MATCH_REPORT,
+      match_id: "showcase-void-shift",
+      result: "win",
+      isVictory: true,
+      opponent: "Smart AI",
+      difficulty: "Smart",
+      gameMode: "power",
+      captured: 5,
+      lost: 3,
+      turns: 31,
+      shards: 100,
+      essence: 20,
+      exp: 150,
+      review: [
+        "Phase Shift through the trap line opened the winning diagonal.",
+        "Collapse denied the rival landing square at the right moment.",
+      ],
+      bestMove: "c3-f6 Phase Shift",
+      abilityImpact: "Phase Shift bent the position by teleporting through blockers.",
+      created_at: now,
+    },
+  ];
+}
+
+function createShowcaseCampaignProgress() {
+  // First three Nomads lessons cleared with 3 stars so the campaign map reads well.
+  return {
+    completed_levels: ["road_behind", "salt_road_sprint", "dust_trap"],
+    current_level_id: "storm_gate",
+    stars_earned: 9,
+    best_clear_turns: { road_behind: 12, salt_road_sprint: 14, dust_trap: 11 },
+  };
+}
+
+function createShowcaseFriendsData() {
+  // Curated social graph so Nexus + Multiplayer never photograph empty.
+  return {
+    friends: NEXUS_FRIENDS.map((friend) => ({ ...friend })),
+    incoming: [],
+    outgoing: [],
+  };
 }
 
 function createBattlePassMissionState(date = new Date()) {

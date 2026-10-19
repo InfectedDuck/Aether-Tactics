@@ -79,7 +79,11 @@ export const fallbackBootstrap = {
     ],
   },
   leaderboard: [
-    { id: "seed-almaty-1", name: "Aruzhan", city: "Almaty", wins: 18, losses: 5, captures: 71, puzzles: 9 },
-    { id: "seed-almaty-2", name: "Daniyar", city: "Almaty", wins: 13, losses: 4, captures: 52, puzzles: 7 },
+    { id: "seed-admin-core", name: "ADMIN_CORE", city: "Almaty", wins: 47, losses: 12, captures: 214, puzzles: 32, mmr_elo_rating: 1820 },
+    { id: "seed-almaty-1", name: "Aruzhan", city: "Almaty", wins: 18, losses: 5, captures: 71, puzzles: 9, mmr_elo_rating: 1410 },
+    { id: "seed-almaty-2", name: "Daniyar", city: "Almaty", wins: 13, losses: 4, captures: 52, puzzles: 7, mmr_elo_rating: 1320 },
+    { id: "seed-astana-1", name: "Suns_Herald", city: "Astana", wins: 12, losses: 11, captures: 48, puzzles: 11, mmr_elo_rating: 1085 },
+    { id: "seed-shymkent-1", name: "Nomad_Rider", city: "Shymkent", wins: 22, losses: 10, captures: 88, puzzles: 14, mmr_elo_rating: 1392 },
+    { id: "seed-global-1", name: "Kaelen_Void", city: "Global", wins: 18, losses: 8, captures: 64, puzzles: 10, mmr_elo_rating: 1320 },
   ],
 };

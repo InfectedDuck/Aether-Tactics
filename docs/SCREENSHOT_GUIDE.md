@@ -1,9 +1,7 @@
 # Screenshot Guide
 
 All screenshots in `docs/screenshots/` are captured from the real app running
-locally, logged in with the offline **Admin Demo** account (`ADMIN_CORE`,
-all factions + 999999 Shards). They are `.jpg` (quality 80, 1600×900) to keep
-the repo light.
+locally, logged in with the showcase **Demo Commander** account (all factions + 999999 Shards, mid-season Battle Pass, seeded coach report). They are `.jpg` (quality 80, 1600×900) to keep the repo light.
 
 ## Regenerate (Windows PowerShell)
 
@@ -29,7 +27,7 @@ $vite = Start-Process -FilePath "C:\Programming\node.js\node.exe" `
 ```
 
 ```powershell
-# 3. run captures (see capture.mjs: /login -> "Admin Demo Access" click,
+# 3. run captures (see capture.mjs: /login -> "Explore as Demo Commander" click,
 #    then one screenshot per route into docs/screenshots/)
 & "C:\Programming\node.js\node.exe" "$env:LOCALAPPDATA\Temp\opencode\shots\capture.mjs"
 ```
@@ -53,7 +51,7 @@ shows local content — expected for screenshots.
 
 | File | Route | Shows |
 | --- | --- | --- |
-| `00-gateway-login.jpg` | `/login` | Gateway + Admin Demo Access |
+| `00-gateway-login.jpg` | `/login` | Gateway + Explore as Demo Commander |
 | `01-nexus-core-menu.jpg` | `/menu` | Nexus Core hub, Play/Collection/Progress/System groups |
 | `02-skirmish-config.jpg` | `/skirmish` | Classic vs Power, AI difficulties, loadout |
 | `03-battlefield-3d.jpg` | `/play/ai` | 3D board mid-match, Cosmos skins, hints |
@@ -73,6 +71,6 @@ shows local content — expected for screenshots.
 
 ## Conventions
 
-- Viewport 1600×900, admin session (unlocks everything offline).
+- Viewport 1600×900, Demo Commander session (showcase progress preloaded).
 - Re-capture after any nav/visual change; keep filenames stable.
 - Prefer `.jpg` quality 80; keep each file under ~300 KB.

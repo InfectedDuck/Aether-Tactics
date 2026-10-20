@@ -10,6 +10,7 @@ import "./styles/collection.css";
 import "./styles/play-hub.css";
 import "./styles/factions.css";
 import "./styles/post-match.css";
+import "./styles/second-level.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

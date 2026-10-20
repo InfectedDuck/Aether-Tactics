@@ -70,6 +70,8 @@ import { campaignArtFor } from "./campaignArt.js";
 import { proArtFor } from "./proArt.js";
 import { PremiumPieceSkin, PremiumPieceSkinPreview, isPremium2DPieceSkin } from "./premiumPieceSkins.jsx";
 import { AppShell } from "./ui/AppShell.jsx";
+import { AtButton, AtPageHeader, AtTabs } from "./ui/components.jsx";
+import { AtSecondaryPage } from "./ui/SecondLevel.jsx";
 import { BattlePassScreen } from "./ui/BattlePassScreen.jsx";
 import { CollectionView } from "./ui/CollectionView.jsx";
 import { FactionsView } from "./ui/FactionsView.jsx";
@@ -401,14 +403,6 @@ function applyAppSettings(nextSettings) {
     document.documentElement.dataset.reducedMotion = settings.reducedMotion ? "true" : "false";
     document.documentElement.dataset.theme = settings.theme;
   }
-}
-function AppGlobalBackButton({ onBack, label = "Back" }) {
-  return (
-    <button className="app-global-back" type="button" onClick={onBack} aria-label={label}>
-      <span>{"<"}</span>
-      <b>{label}</b>
-    </button>
-  );
 }
 const CAMPAIGN_NODE_POSITIONS = [
   { x: 15, y: 50 },
@@ -1751,7 +1745,7 @@ export function App() {
         eyebrow: "Daily Challenge",
         title: puzzle.title,
         subtitle: puzzle.objective,
-        art: campaignArtFor(puzzle.id),
+        art: campaignArtFor(puzzle.id) || factionArtFor(puzzle.loadout?.factionId || "nomads"),
         segments: 0,
         progressValue: 0,
         meta: streaks.dailyPuzzle > 0 ? `${streaks.dailyPuzzle} streak · Ready` : "Ready",
@@ -1775,8 +1769,8 @@ export function App() {
     const tiles = [
       { id: "skirmish", title: "Skirmish", meta: isAuthenticated ? "Practice vs AI" : "Guest trial available", art: factionArtFor(loadout?.factionId || "nomads") },
       { id: "campaign", title: "Campaign", meta: isAuthenticated ? `${done}/${levels.length} sectors` : "Login required", art: factionArtFor(campaignFactionId) },
-      { id: "daily", title: "Daily Challenge", meta: !isAuthenticated ? "Login required" : streaks.dailyPuzzle > 0 ? `${streaks.dailyPuzzle} streak · Ready` : "Ready", art: campaignArtFor(puzzle.id) },
-      { id: "multiplayer", title: "Multiplayer", meta: !isAuthenticated ? "Login required" : online > 0 ? `${online} friends online` : "Ranked and casual", art: "" },
+      { id: "daily", title: "Daily Challenge", meta: !isAuthenticated ? "Login required" : streaks.dailyPuzzle > 0 ? `${streaks.dailyPuzzle} streak · Ready` : "Ready", art: campaignArtFor(puzzle.id) || factionArtFor(puzzle.loadout?.factionId || "nomads") },
+      { id: "multiplayer", title: "Multiplayer", meta: !isAuthenticated ? "Login required" : online > 0 ? `${online} friends online` : "Ranked and casual", art: factionArtFor("void_order") },
     ];
     return {
       hero,
@@ -5286,6 +5280,7 @@ export function App() {
       <>
         <NexusMultiplayerScreen
           demoMode={demoMode}
+          developerMode={developerMode}
           isAuthenticated={isAuthenticated}
           friendsData={friendsData}
           playerSearchResults={playerSearchResults}
@@ -5938,19 +5933,25 @@ function CommanderProfileScreen({ profile, factions, message, connectionHealth =
   }
 
   return (
+    <AtSecondaryPage
+      title="Commander Profile"
+      breadcrumb={["Play", "Profile"]}
+      onBack={onHome}
+      actions={
+        <AtButton variant="secondary" size="md" onClick={onVault} disabled={isSaving}>
+          Open vault
+        </AtButton>
+      }
+    >
     <main className="profile-screen">
-      <header className="profile-topbar">
-        <button onClick={onHome} disabled={isSaving}>{"<"}</button>
-        <div>
-          <small>Aether Tactics / Commander Console</small>
-          <h1>Commander Profile</h1>
-        </div>
-        <button onClick={onVault} disabled={isSaving}>Open Vault</button>
-      </header>
-
-      <nav className="profile-tabs" aria-label="Profile sections">
-        {["profile", "account"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}
-      </nav>
+      <AtTabs
+        tabs={[
+          { id: "profile", label: "Profile" },
+          { id: "account", label: "Account" },
+        ]}
+        activeId={tab}
+        onChange={setTab}
+      />
 
       <section className="profile-layout">
         <article className="profile-card primary">
@@ -5986,7 +5987,7 @@ function CommanderProfileScreen({ profile, factions, message, connectionHealth =
                   )}
                 </div>
               </section>
-              <button className="profile-save" onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Saving..." : "Save Commander Profile"}</button>
+              <AtButton variant="primary" size="md" onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Saving..." : "Save commander profile"}</AtButton>
               <p>{message}</p>
             </div>
           )}
@@ -6008,7 +6009,7 @@ function CommanderProfileScreen({ profile, factions, message, connectionHealth =
                 ))}
                 <small>{connectionHealth.apiUrl || "Local development URL"}</small>
               </section>
-              <button className="profile-save" onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Saving..." : "Sync Account"}</button>
+              <AtButton variant="primary" size="md" onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Saving..." : "Sync account"}</AtButton>
             </div>
           )}
         </article>
@@ -6025,6 +6026,7 @@ function CommanderProfileScreen({ profile, factions, message, connectionHealth =
         </aside>
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -6051,15 +6053,15 @@ function SettingsScreen({ profile, message, isSaving = false, onSave, onHome, on
   }
 
   return (
+    <AtSecondaryPage
+      title="Settings"
+      breadcrumb={["Play", "Settings"]}
+      onBack={onHome}
+      actions={
+        <AtButton variant="primary" size="md" onClick={saveSettings} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</AtButton>
+      }
+    >
     <main className="profile-screen settings-screen">
-      <header className="profile-topbar">
-        <button onClick={onHome} disabled={isSaving}>{"<"}</button>
-        <div>
-          <small>Aether Tactics / Nexus Console</small>
-          <h1>Settings</h1>
-        </div>
-        <button onClick={saveSettings} disabled={isSaving}>{isSaving ? "Saving..." : "Save"}</button>
-      </header>
 
       <section className="profile-layout settings-layout">
         <article className="profile-card settings-card">
@@ -6084,8 +6086,8 @@ function SettingsScreen({ profile, message, isSaving = false, onSave, onHome, on
               <label key={key} className="toggle-row">{label}<input type="checkbox" checked={draft[key]} onChange={(event) => updateSettings(key, event.target.checked)} /></label>
             ))}
             <div className="settings-actions">
-              <button onClick={() => onTestSound?.("ultimate")} disabled={isSaving}>Test SFX</button>
-              <button onClick={onTestVoice} disabled={isSaving}>Test Voice</button>
+              <AtButton variant="secondary" size="sm" onClick={() => onTestSound?.("ultimate")} disabled={isSaving}>Test SFX</AtButton>
+              <AtButton variant="secondary" size="sm" onClick={onTestVoice} disabled={isSaving}>Test voice</AtButton>
             </div>
           </div>
         </article>
@@ -6098,12 +6100,13 @@ function SettingsScreen({ profile, message, isSaving = false, onSave, onHome, on
               <option value="light">Light Command</option>
             </select></label>
             <label className="toggle-row">Reduced Motion<input type="checkbox" checked={draft.reducedMotion} onChange={(event) => updateSettings("reducedMotion", event.target.checked)} /></label>
-            <button className="profile-save" onClick={saveSettings} disabled={isSaving}>{isSaving ? "Saving..." : "Save Settings"}</button>
+            <AtButton variant="primary" size="md" onClick={saveSettings} disabled={isSaving}>{isSaving ? "Saving..." : "Save settings"}</AtButton>
             <p>{message}</p>
           </div>
         </article>
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -6527,15 +6530,15 @@ function ProgressionScreen({ focus = "progression", profile, factions, campaignP
   }
 
   return (
+    <AtSecondaryPage
+      title="Progression Tree"
+      breadcrumb={["Profile", "Progression"]}
+      onBack={onBack}
+      actions={
+        <AtButton variant="secondary" size="md" onClick={onVault}>Open vault</AtButton>
+      }
+    >
     <main className={`progression-screen ${battlePassFocus ? "battle-pass-focused" : ""}`}>
-      <header className="profile-topbar">
-        <button onClick={onBack}>{"<"}</button>
-        <div>
-          <small>{battlePassFocus ? "Founder Season / Missions And Rewards" : "Commander Progression / Reward Track"}</small>
-          <h1>{battlePassFocus ? "Battle Pass" : "Progression Tree"}</h1>
-        </div>
-        <button onClick={onVault}>Open Vault</button>
-      </header>
 
       <section className="progression-hero">
         <article>
@@ -6612,6 +6615,7 @@ function ProgressionScreen({ focus = "progression", profile, factions, campaignP
         </div>
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -7246,7 +7250,7 @@ function VersusIntro({ matchup, onSkip }) {
       <div className="versus-core">
         <strong>VS</strong>
         <small>Room {matchup?.roomCode || "PRIVATE"}</small>
-        <button onClick={onSkip}>Deploy Now</button>
+        <AtButton variant="primary" size="lg" onClick={onSkip}>Deploy now</AtButton>
       </div>
       <section className="versus-card opponent">
         <FactionImage faction={right.favorite_faction || "void_order"} fallback={right.avatar} />
@@ -7305,15 +7309,9 @@ function CampaignFactionSelect({ profile, factions = [], progress, onBack, onNom
     },
   };
   return (
+    <AtSecondaryPage title="Choose Campaign Path" breadcrumb={["Play", "Campaign"]} onBack={onBack}>
     <main className="campaign-select-screen">
-      <header className="campaign-select-header">
-        <button onClick={onBack}>{"<"}</button>
-        <div>
-          <small>Single Player / Faction Campaigns</small>
-          <h1>Choose Campaign Path</h1>
-          <p>Nomads are free to play. Future factions create a clear progression loop, while Void is positioned as a premium Vault unlock.</p>
-        </div>
-      </header>
+      <p className="at-body">Nomads are free to play. Future factions create a clear progression loop, while Void is positioned as a premium Vault unlock.</p>
       <section className="campaign-select-grid">
         {factionList.map((faction) => {
           const meta = statusById[faction.id] || statusById.nomads;
@@ -7332,12 +7330,13 @@ function CampaignFactionSelect({ profile, factions = [], progress, onBack, onNom
                 <b>{faction.id === "nomads" ? `${completed.size}/${withFactionCampaign(null, "nomads").levels.length} sectors` : faction.id === "iron_guard" ? `${withFactionCampaign(null, "iron_guard").levels.length} Guard missions` : faction.id === "sun_court" ? `${withFactionCampaign(null, "sun_court").levels.length} Court missions` : faction.id === "void_order" ? `${withFactionCampaign(null, "void_order").levels.length} Pro archive missions` : "Coming soon"}</b>
                 <small>{faction.id === "void_order" ? "900 Shards" : faction.id === "nomads" ? "Free starter path" : faction.id === "iron_guard" ? (ironUnlocked ? "Unlocked faction path" : "Requires Level 2") : faction.id === "sun_court" ? (sunUnlocked ? "Unlocked faction path" : "Requires Level 4") : "Not playable yet"}</small>
               </div>
-              <button onClick={meta.onClick}>{meta.action}</button>
+              <AtButton variant="secondary" size="md" onClick={meta.onClick}>{meta.action}</AtButton>
             </article>
           );
         })}
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -7394,12 +7393,15 @@ function CampaignMap({ campaign, progress, focusLevelId = "", musicTitle = music
   }
 
   return (
+    <AtSecondaryPage
+      title={campaign?.name || "Shattered Realms"}
+      breadcrumb={["Play", "Campaign"]}
+      onBack={onBack}
+    >
     <main className="campaign-map">
       <header className="campaign-map-header">
         <div className="campaign-title-row">
-          <button className="campaign-back" onClick={onBack} aria-label="Back to Nexus">{"<"}</button>
           <div>
-            <h1>{campaign?.name || "Shattered Realms"}</h1>
             <p>{campaign?.description || "Global Campaign Progress"} - {progressPct}% Captured</p>
           </div>
         </div>
@@ -7457,11 +7459,12 @@ function CampaignMap({ campaign, progress, focusLevelId = "", musicTitle = music
               </section>
             )}
             {renderStars(activeNode.stars)}
-            <button onClick={() => onStart(activeNode)}>Start Mission</button>
+            <AtButton variant="primary" size="md" onClick={() => onStart(activeNode)}>Start mission</AtButton>
           </article>
         </div>
       )}
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -7471,15 +7474,13 @@ function DailyPuzzleScreen({ profile, onBack, onStart }) {
   const puzzle = challenges.find((item) => item.id === selectedId) || getDailyPuzzle();
   const streaks = normalizeStreaks(profile.streaks);
   return (
+    <AtSecondaryPage
+      title="Daily Challenge Hub"
+      breadcrumb={["Play", "Daily Challenge"]}
+      onBack={onBack}
+      actions={<strong>{streaks.dailyPuzzle} puzzle streak</strong>}
+    >
     <main className="daily-puzzle-screen">
-      <header className="profile-topbar">
-        <button onClick={onBack}>{"<"}</button>
-        <div>
-          <small>Retention Loop / Daily Challenge Hub</small>
-          <h1>Daily Challenge Hub</h1>
-        </div>
-        <strong>{streaks.dailyPuzzle} puzzle streak</strong>
-      </header>
       <section className="daily-puzzle-card">
         <span>{puzzle.type}</span>
         <h2>{puzzle.title}</h2>
@@ -7500,9 +7501,10 @@ function DailyPuzzleScreen({ profile, onBack, onStart }) {
           <strong>Reward</strong>
           <small>{puzzle.reward}</small>
         </div>
-        <button onClick={() => onStart(puzzle)}>Start Challenge</button>
+        <AtButton variant="primary" size="lg" onClick={() => onStart(puzzle)}>Start challenge</AtButton>
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -7536,16 +7538,9 @@ function FactionAbilitiesShowcase({ profile, factions = [], onBack, onLoadout, o
 
   return (
     <main className="faction-showcase">
-      <header className="showcase-topbar">
-        <button className="showcase-back" onClick={onBack} aria-label="Back to Nexus">{"<"}</button>
-        <div className="showcase-currencies">
-          <span><b>E</b>{profile.essence}</span>
-          <span><b>S</b>{profile.shards}</span>
-        </div>
-        <div className="showcase-actions">
-          <button aria-label="Profile" onClick={onProfile}>PR</button>
-        </div>
-      </header>
+      <div className="at-secondary__body">
+        <AtButton variant="ghost" size="sm" onClick={onBack}>Back</AtButton>
+      </div>
 
       <section className="faction-showcase-body">
         <aside className="faction-selector" aria-label="Faction selector">
@@ -7570,10 +7565,14 @@ function FactionAbilitiesShowcase({ profile, factions = [], onBack, onLoadout, o
             <h1>{faction.name}</h1>
           </header>
 
-          <nav className="faction-tabs" aria-label="Faction information tabs">
-            <button className={tab === "lore" ? "selected" : ""} onClick={() => setTab("lore")}>Lore</button>
-            <button className={tab === "stats" ? "selected" : ""} onClick={() => setTab("stats")}>Stats</button>
-          </nav>
+          <AtTabs
+            tabs={[
+              { id: "lore", label: "Lore" },
+              { id: "stats", label: "Stats" },
+            ]}
+            activeId={tab}
+            onChange={setTab}
+          />
 
           {tab === "lore" ? (
             <article className="faction-lore-box">
@@ -7615,9 +7614,9 @@ function FactionAbilitiesShowcase({ profile, factions = [], onBack, onLoadout, o
         <section className="showcase-progression">
           <div><span>{isUnlocked ? "Mastery Level" : "Locked Faction"}</span><strong>LVL {profile.level}</strong><b>{mastery}% XP</b></div>
           <i><b style={{ width: `${mastery}%` }} /></i>
-          <button onClick={onRewards}>{isUnlocked ? "Unlock Rewards" : `Requires Level ${requiredLevel}`}</button>
+          <AtButton variant="secondary" size="sm" onClick={onRewards}>{isUnlocked ? "Unlock rewards" : `Requires level ${requiredLevel}`}</AtButton>
         </section>
-        <button className="select-loadout-button" onClick={onLoadout} disabled={!isUnlocked}>Select Tactical Loadout</button>
+        <AtButton variant="primary" size="md" onClick={onLoadout} disabled={!isUnlocked}>Select tactical loadout</AtButton>
       </footer>
     </main>
   );
@@ -8000,10 +7999,10 @@ function SkirmishConfiguration({ profile, isAuthenticated, onBack, onLogin, onAu
   };
 
   return (
+    <AtSecondaryPage title="Skirmish Configuration" breadcrumb={["Play", "Skirmish"]} onBack={onBack}>
     <main className="skirmish-config">
       <header className="skirmish-osbar">
         <div className="os-left">
-          <button className="skirmish-back" onClick={onBack} aria-label="Back to Nexus">{"<"}</button>
           <div className="aether-brand">
             <AetherLogoMark />
             <strong>Aether</strong>
@@ -8024,7 +8023,7 @@ function SkirmishConfiguration({ profile, isAuthenticated, onBack, onLogin, onAu
               <div><strong>{profile.username}</strong><small>LVL {profile.level}</small></div>
               <CommanderPortrait profile={profile} />
             </>
-          ) : <button className="skirmish-login" onClick={onLogin}>Login / Register</button>}
+          ) : <AtButton variant="secondary" size="sm" onClick={onLogin}>Login / Register</AtButton>}
         </div>
       </header>
 
@@ -8133,11 +8132,12 @@ function SkirmishConfiguration({ profile, isAuthenticated, onBack, onLogin, onAu
       </section>
 
       <footer className="skirmish-footer">
-        <button onClick={() => onConfirm({ variant: variantId, difficulty })}><span>Confirm Match Setup</span><b>{"<"}</b></button>
+        <AtButton variant="primary" size="lg" onClick={() => onConfirm({ variant: variantId, difficulty })}>Confirm match setup</AtButton>
         {feedback && <p className="skirmish-inline-message">{feedback}</p>}
         <p>{isAuthenticated ? "Estimated match duration: 10-15 minutes" : "Guest mode: Classic AI only, no saved rewards"}<br />{isAuthenticated ? "Rewards: +150 XP // 40 Essence guaranteed" : "Login to unlock Power Checkers and progression"}</p>
       </footer>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -8463,50 +8463,45 @@ function NexusMenuIcon({ name }) {
 
 function NexusFeatureScreen({ feature, onHome }) {
   return (
+    <AtSecondaryPage title={feature.title} breadcrumb={["Play"]} onBack={onHome}>
     <main className="nexus-core feature-core">
-      <header className="nexus-topbar">
-        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
-        <div className="nexus-currencies">
-          <span><b>E</b>2,450</span>
-          <span><b>S</b>12,800</span>
-        </div>
-        <div className="nexus-actions">
-          <button onClick={onHome}>NC</button>
-          <button className="nexus-avatar" aria-label="Profile">P</button>
-        </div>
-      </header>
       <section className="feature-panel">
         <p>{feature.eyebrow}</p>
         <h2>{feature.title}</h2>
         <span>{feature.copy}</span>
         <div>
-          {feature.actions.map((action) => <button key={action}>{action}</button>)}
-          <button onClick={onHome}>Return to Nexus</button>
+          {feature.actions.map((action) => <AtButton key={action} variant="secondary" size="md">{action}</AtButton>)}
+          <AtButton variant="ghost" size="md" onClick={onHome}>Back to Play</AtButton>
         </div>
       </section>
       <FooterPlayer trackId={DEFAULT_SETTINGS.musicTrack} />
     </main>
+    </AtSecondaryPage>
   );
 }
 
 function GuestLockedScreen({ feature, onHome, onLogin }) {
   return (
+    <AtSecondaryPage
+      title={`${feature} locked`}
+      breadcrumb={["Play"]}
+      onBack={onHome}
+      actions={
+        <AtButton variant="primary" size="md" onClick={onLogin}>Login / Register</AtButton>
+      }
+    >
     <main className="nexus-core feature-core">
-      <header className="nexus-topbar">
-        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
-        <div className="nexus-currencies"><span className="guest-pill">Guest AI Trial</span></div>
-        <div className="nexus-actions"><button className="guest-auth-button" onClick={onLogin}>Login / Register</button></div>
-      </header>
       <section className="feature-panel guest-locked-screen">
         <p>Login required</p>
         <h2>{feature} Locked</h2>
         <span>Guests can only play Classic AI skirmishes. Create a commander to unlock Power mode, Multiplayer, Vault, quests, achievements, and saved progression.</span>
         <div>
-          <button onClick={onLogin}>Login / Register</button>
-          <button onClick={onHome}>Return to Nexus</button>
+          <AtButton variant="primary" size="md" onClick={onLogin}>Login / Register</AtButton>
+          <AtButton variant="ghost" size="md" onClick={onHome}>Back to Play</AtButton>
         </div>
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -8535,20 +8530,20 @@ function CustomLobbyScreen({ code, role, state, profile, factions = [], loadout,
   }
 
   return (
+    <AtSecondaryPage
+      title={cleanCode || "Join Lobby"}
+      breadcrumb={["Play", "Multiplayer", "Lobby"]}
+      onBack={onBack}
+      actions={
+        <AtButton variant="secondary" size="md" onClick={onCopy} disabled={!cleanCode}>Copy link</AtButton>
+      }
+    >
     <main className="custom-lobby-screen">
-      <header className="lobby-topbar">
-        <button onClick={onBack}>{"<"}</button>
-        <div>
-          <small>Custom Multiplayer Lobby</small>
-          <h1>{cleanCode || "Join Lobby"}</h1>
-          <p>{message || "Configure factions and abilities. The match starts only when both commanders are ready."}</p>
-        </div>
-        <button onClick={onCopy} disabled={!cleanCode}>Copy Link</button>
-      </header>
+      <p className="at-body">{message || "Configure factions and abilities. The match starts only when both commanders are ready."}</p>
 
       <section className="lobby-code-panel">
         <label>Join Code<input value={cleanCode} onChange={(event) => onCodeChange?.(event.target.value)} placeholder="A1B2C3" maxLength={6} /></label>
-        <button onClick={onJoin} disabled={role === "host"}>{role === "host" ? "Hosting" : joined ? "Refresh Join" : "Join Lobby"}</button>
+        <AtButton variant="primary" size="md" onClick={onJoin} disabled={role === "host"}>{role === "host" ? "Hosting" : joined ? "Refresh join" : "Join lobby"}</AtButton>
         <span>{bothReady ? "Both ready // Launching" : !hostConnected && state?.host ? "Host left the room" : state?.guest && !guestConnected ? "Opponent left the room" : hostConnected && guestConnected ? "Two commanders connected" : "Waiting for opponent"}</span>
       </section>
 
@@ -8585,10 +8580,11 @@ function CustomLobbyScreen({ code, role, state, profile, factions = [], loadout,
               {ultimates.map((ability) => <button key={ability.id} className={loadout.ultimateId === ability.id ? "active" : ""} onClick={() => onLoadout?.({ ...loadout, ultimateId: ability.id })} disabled={!joined}>{ability.name}</button>)}
             </section>
           </div>
-          <button className="lobby-ready-button" onClick={() => onReady?.(!player?.ready)} disabled={!canReady}>{player?.ready ? "Cancel Ready" : "Ready"}</button>
+          <AtButton variant="primary" size="lg" onClick={() => onReady?.(!player?.ready)} disabled={!canReady}>{player?.ready ? "Cancel ready" : "Ready"}</AtButton>
         </article>
       </section>
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -8606,24 +8602,14 @@ function LobbyPlayerCard({ title, player, active }) {
   );
 }
 
-function NexusMultiplayerScreen({ demoMode, isAuthenticated, friendsData, playerSearchResults, profile, factions = [], loadout = DEFAULT_LOADOUT, gameVariant = "power", userId, leaderboard, leaderboardCity, onLoadout, onGameVariant, onNavigate, onHome, onProfile, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
+function NexusMultiplayerScreen({ demoMode, developerMode = false, isAuthenticated, friendsData, playerSearchResults, profile, factions = [], loadout = DEFAULT_LOADOUT, gameVariant = "power", userId, leaderboard, leaderboardCity, onLoadout, onGameVariant, onNavigate, onHome, onProfile, onNotify, onStartRoom, onHostLobby, onJoinLobby, onSearchPlayers, onRequestFriend, onOpenPublicProfile, onInviteFriend, onRespondRequest, onLeaderboardCity }) {
   return (
+    <AtSecondaryPage title="Multiplayer" breadcrumb={["Play", "Multiplayer"]} onBack={onHome}>
     <main className="ops-shell">
-      <header className="nexus-topbar">
-        <AetherBrandLockup label={`${APP_NAME} / Nexus Core`} />
-        <div className="nexus-currencies">
-          <span><b>E</b>{profile.essence}</span>
-          <span><b>S</b>{profile.shards}</span>
-          {demoMode && SHOW_ADMIN_DEMO && <span className="demo-pill">Showcase</span>}
-        </div>
-        <div className="nexus-actions">
-          <button onClick={onHome}>NC</button>
-          <button className="nexus-avatar" aria-label="Profile" onClick={onProfile}>{(profile.username || "P").slice(0, 1)}</button>
-        </div>
-      </header>
       <MultiplayerOperations isAuthenticated={isAuthenticated} friendsData={friendsData} playerSearchResults={playerSearchResults} profile={profile} factions={factions} loadout={loadout} gameVariant={gameVariant} userId={userId} leaderboard={leaderboard} leaderboardCity={leaderboardCity} onLoadout={onLoadout} onGameVariant={onGameVariant} onNotify={onNotify} onStartRoom={onStartRoom} onHostLobby={onHostLobby} onJoinLobby={onJoinLobby} onSearchPlayers={onSearchPlayers} onRequestFriend={onRequestFriend} onOpenPublicProfile={onOpenPublicProfile} onInviteFriend={onInviteFriend} onRespondRequest={onRespondRequest} onLeaderboardCity={onLeaderboardCity} />
       <FooterPlayer trackId={profile.settings?.musicTrack} />
     </main>
+    </AtSecondaryPage>
   );
 }
 
@@ -8856,7 +8842,7 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
               <b>Begin Search</b>
             </button>
           </div>
-          {queueState.mode !== "idle" && queueState.mode !== "ranked-pending" && <button className="queue-cancel" onClick={cancelQueue}>Cancel Queue / Room Search</button>}
+          {queueState.mode !== "idle" && queueState.mode !== "ranked-pending" && <AtButton variant="ghost" size="md" onClick={cancelQueue}>Cancel queue</AtButton>}
         </section>
 
         <section className="ops-section">
@@ -8870,7 +8856,7 @@ function MultiplayerOperations({ isAuthenticated = false, friendsData, playerSea
           </div>
           <div className="join-room-row">
             <input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="ENTER ROOM CODE" />
-            <button onClick={joinRoom}>Join Room</button>
+            <AtButton variant="primary" size="md" onClick={joinRoom}>Join room</AtButton>
           </div>
         </section>
 

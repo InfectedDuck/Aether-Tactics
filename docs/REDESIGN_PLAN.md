@@ -119,3 +119,24 @@ Skirmish setup, Campaign map, Daily puzzle, Multiplayer queue/lobby, Settings, P
 - No horizontal page scroll at 390 px.
 - Demo Commander flow from the README still works: Explore as Demo → Campaign lesson → finish AI match → Coach review → Collection board switch.
 - Re-capture README screenshots per `docs/SCREENSHOT_GUIDE.md`.
+
+## Phase 3.6 — Done (2026-10-20)
+
+Second-level consistency implemented, no layout redesign, no game-logic/backend/URL changes:
+
+- New `src/ui/SecondLevel.jsx` (`AtSecondaryPage`): wraps legacy second-level screens in the shared `AtPageHeader` (one back arrow + breadcrumb per page, sentence-case `AtButton` actions).
+- New `src/styles/second-level.css` (imported in `main.jsx` after `post-match.css`, `at-` prefixed): `.at-secondary` container, `overflow-x: clip` guards for 390 px, hides any leftover legacy `<` buttons inside the wrapper, `prefers-reduced-motion` support.
+- Migrated in `src/App.jsx` (props, handlers, data flow unchanged):
+  - Profile (`CommanderProfileScreen`, breadcrumb Play / Profile, `AtTabs` Profile/Account, save actions as `AtButton`), Settings (Play / Settings, Save + Test SFX/voice as `AtButton`), Progression tree (Profile / Progression).
+  - Skirmish setup (Play / Skirmish), Campaign path + Campaign map (Play / Campaign), Daily Challenge hub (Play / Daily Challenge) — primary CTAs now `AtButton`.
+  - Multiplayer operations (Play / Multiplayer, duplicate topbar removed, Join/Cancel as `AtButton`), Custom lobby (Play / Multiplayer / Lobby, Copy/Join/Ready as `AtButton`), Codex tab (`AtTabs` Lore/Stats, `AtButton` actions, duplicate currencies/avatar topbar removed), Versus intro (Deploy as `AtButton`), Guest-locked + Feature screens (duplicate topbars removed, `AtButton` actions).
+- Removed dead `AppGlobalBackButton` (floating BACK pill). Remaining `<` buttons exist only in dead code (Vault/Inventory/TacticalLoadout screens kept per plan), the live match HUD exit, and the shell-less register gateway.
+- Removed the `Showcase` pill from the multiplayer screen; dev visibility now comes only from the shell `Dev · Admin · Showcase` chip gated by Developer mode. `NEXUS_ROUTES`, `routeFromPath`, `AUTH_REQUIRED_ROUTES` untouched.
+- Verified: `npm run build` passes (frontend, 12.2 s, no new warnings).
+- Screenshots re-captured (2026-10-20) per `docs/SCREENSHOT_GUIDE.md`: all 14 files in `docs/screenshots/` refreshed at 1600×900 jpg q80 (50–152 KB each, under the 300 KB limit) via `capture.mjs` + `recapture.mjs` (temp dir, Demo Commander flow: `/login` → Explore as Demo Commander → one shot per route). Deleted shots (`05b`, `11-progress`, `03b`) stayed deleted. Spot-checked 01 (Play hub + shell), 03 (3D board), 11b (Battle Pass), 13 (Profile): new UI, demo data loaded, no empty/error states, no ADMIN/SHOWCASE badges outside Developer mode. Flaky-note: `networkidle` never settles right after visiting `/play/ai` (persistent connection from the 3D match screen), so retries use `domcontentloaded` + fixed waits.
+
+## Follow-up fixes (2026-10-20, uncommitted with Phase 3.6)
+
+- Play hub placeholder art: Daily tile/hero fell back to the "D" glyph on days whose puzzle id has no campaign art (`survival_net`, `ability_only`); Multiplayer tile always showed "M" (`art: ""`). Data-only fix in `playHubModel` (`src/App.jsx`): daily art falls back to `factionArtFor(puzzle.loadout?.factionId || "nomads")`, multiplayer tile uses `factionArtFor("void_order")` (matches the versus-intro opponent default). Re-captured `01-nexus-core-menu.jpg` — all four tiles now show art.
+- 390 px audit (temp-dir scripts: `audit-390.mjs`, `diag-overflow*.mjs`, `shot-390.mjs`): first run failed everywhere with uniform `scrollWidth=466`, traced to `.at-topbar__actions` overflowing (logo word + 2 pills + 3 buttons don't fit 390 px). Fixed in `src/styles/shell.css` ≤719 px block: hide logo word, hide the Friends button (redundant with the Social tab-bar item; new `at-icon-btn--friends` class in `AppShell.jsx`), tighten gaps/padding, `min-width: 0` so flex children can shrink. `/admin` (demo-only) separately failed at 445 px via 4/5/3-column legacy grids; collapsed to 2/2/1 columns + `overflow-wrap` guard in `src/styles/second-level.css` mobile block. Re-audit: **19/19 routes PASS** (`scrollWidth=390`), verified visually with a 390 px `/menu` shot.
+- `npm run build` still passes after these changes.

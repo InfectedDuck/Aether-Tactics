@@ -269,7 +269,16 @@
 
 @media (max-width: 719px) {
   .at-rail { display: none; }
+  .at-topbar { gap: 8px; padding: 0 12px; }
+  .at-logo { min-width: 0; padding-right: 0; }
+  .at-logo__word { display: none; }
+  .at-topbar__currencies { margin-left: 0; gap: 6px; min-width: 0; }
+  .at-topbar__currencies .at-currency { min-width: 0; padding: 6px 8px; }
   .at-topbar__currencies .at-currency__value { max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
+  .at-topbar__actions { gap: 6px; min-width: 0; }
+  /* Friends live in the bottom tab bar (Social) on mobile; hiding the
+   * duplicate topbar button keeps the 64px bar inside 390px viewports. */
+  .at-topbar__actions .at-icon-btn--friends { display: none; }
   .at-shell__content { padding: 16px 16px 96px; }
   .at-shell--focus .at-shell__content { padding: 0; }
   .at-tabbar {

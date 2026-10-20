@@ -130,7 +130,7 @@ export function AppShell({
         <div className="at-topbar__actions">
           <button
             type="button"
-            className="at-icon-btn"
+            className="at-icon-btn at-icon-btn--friends"
             aria-label={`Friends, ${friendsOnlineCount} online`}
             title={`${friendsOnlineCount} friends online`}
             onClick={() => go("social")}

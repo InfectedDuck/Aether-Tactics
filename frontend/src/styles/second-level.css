@@ -1,0 +1,119 @@
+/* Aether Tactics redesign — Phase 3.6 second-level consistency layer.
+ * Scoped to .at- prefix; loaded after styles.css. No layout redesign here:
+ * legacy second-level screens keep their markup, but live inside
+ * .at-secondary so headers, actions and mobile overflow behave like the
+ * redesigned screens. Old CSS is left untouched.
+ */
+
+.at-secondary {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-x: clip;
+}
+
+.at-secondary__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-x: clip;
+}
+
+/* Legacy screen roots rendered inside .at-secondary: keep their layout but
+ * stop them from scrolling the page horizontally on small screens. */
+.at-secondary .profile-screen,
+.at-secondary .campaign-select-screen,
+.at-secondary .campaign-map,
+.at-secondary .daily-puzzle-screen,
+.at-secondary .skirmish-config,
+.at-secondary .custom-lobby-screen,
+.at-secondary .ops-shell,
+.at-secondary .multiplayer-ops,
+.at-secondary .nexus-core,
+.at-secondary .versus-intro,
+.at-secondary .faction-showcase,
+.at-secondary .progression-screen {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* Legacy headers inside .at-secondary only carry actions now — the back
+ * arrow + breadcrumb come from AtPageHeader. Hide their duplicated "<". */
+.at-secondary .profile-topbar > button:first-child,
+.at-secondary .campaign-select-header > button:first-child,
+.at-secondary .campaign-map-header .campaign-back,
+.at-secondary .daily-puzzle-screen .profile-topbar > button:first-child,
+.at-secondary .skirmish-osbar .skirmish-back,
+.at-secondary .lobby-topbar > button:first-child,
+.at-secondary .showcase-topbar .showcase-back,
+.at-secondary .progression-screen .profile-topbar > button:first-child {
+  display: none;
+}
+
+/* Duplicate shell surfaces removed at the component level; keep grids and
+ * cards inside the viewport on mobile. */
+.at-secondary .campaign-select-grid,
+.at-secondary .daily-challenge-grid,
+.at-secondary .variant-grid,
+.at-secondary .difficulty-list,
+.at-secondary .private-grid,
+.at-secondary .friend-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.at-secondary img {
+  max-width: 100%;
+}
+
+@media (max-width: 719px) {
+  .at-secondary {
+    gap: 12px;
+  }
+  .at-secondary .skirmish-layout,
+  .at-secondary .profile-layout,
+  .at-secondary .lobby-loadout,
+  .at-secondary .multiplayer-ops,
+  .at-secondary .ops-main,
+  .at-secondary .faction-showcase-body {
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Demo-only admin dashboard: 4/5-column legacy grids overflow 390px
+   * viewports. Collapse them on mobile; desktop layout untouched. */
+  .admin-dashboard,
+  .admin-dashboard-topbar,
+  .admin-stats-grid,
+  .admin-actions-grid,
+  .admin-dashboard-panels,
+  .admin-dashboard article,
+  .admin-dashboard button {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .admin-stats-grid,
+  .admin-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-dashboard-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-dashboard strong,
+  .admin-dashboard span,
+  .admin-dashboard p {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .at-secondary * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

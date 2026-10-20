@@ -3845,6 +3845,14 @@ export function App() {
       setInventoryItems((items) => [...items, ...optimisticInventory]);
     }
     addNotification("Achievement claimed", `${achievement.title}: ${formatReward(reward)} added.`, "success");
+    if (isLocalSession) {
+      // Demo/offline sessions have no server to confirm against (DB routes
+      // return 503 without Supabase). The optimistic grant above is the
+      // source of truth: profile + inventory auto-persist to localStorage
+      // via the effects below, same as saveProfilePatch in demo mode.
+      setAchievementBusyId("");
+      return;
+    }
     const requests = [saveProfile(activeUserId, {
       achievements_claimed: rewardedProfile.achievements_claimed,
       current_exp: rewardedProfile.current_exp,

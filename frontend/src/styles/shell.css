@@ -1,0 +1,305 @@
+/* Aether Tactics redesign — app shell styles (Phase 2).
+ * Scoped to .at- prefix; loaded after styles.css.
+ */
+
+.at-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--at-bg);
+  color: var(--at-text);
+}
+
+/* Top bar 64px */
+.at-topbar {
+  height: 64px;
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--at-panel);
+  border-bottom: 1px solid var(--at-border);
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+
+.at-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  color: var(--at-text);
+  cursor: pointer;
+  padding: 4px 8px 4px 0;
+}
+.at-logo__mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: inline-block;
+  background: var(--at-surface);
+}
+.at-logo__mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.at-logo__word {
+  font-family: var(--at-font-display);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.at-dev-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--at-radius-pill);
+  background: var(--at-surface);
+  border: 1px solid var(--at-border);
+  color: var(--at-text-muted);
+  white-space: nowrap;
+}
+
+.at-topbar__currencies {
+  display: flex;
+  gap: 8px;
+  margin-left: 8px;
+}
+.at-topbar__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.at-icon-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--at-surface);
+  border: 1px solid var(--at-border);
+  color: var(--at-text);
+  cursor: pointer;
+  font-size: 17px;
+  transition: background-color var(--at-transition), transform var(--at-transition);
+}
+.at-icon-btn:hover { background: var(--at-hover); transform: translateY(var(--at-lift)); }
+.at-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--at-gold);
+  color: var(--at-on-gold);
+  font-size: 11px;
+  font-weight: 800;
+  font-style: normal;
+  display: grid;
+  place-items: center;
+}
+
+.at-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--at-border);
+  background: var(--at-raised);
+  color: var(--at-text);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+.at-avatar:hover { border-color: var(--at-gold); }
+
+.at-popover-anchor { position: relative; display: inline-block; }
+.at-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 320px;
+  max-width: min(320px, 90vw);
+  background: var(--at-panel);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius-card);
+  padding: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  z-index: 90;
+}
+.at-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.at-link {
+  background: none;
+  border: none;
+  color: var(--at-gold);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+}
+.at-link--muted { color: var(--at-text-muted); }
+.at-notif {
+  padding: 10px 4px;
+  border-top: 1px solid var(--at-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.at-notif__main { display: flex; flex-direction: column; gap: 2px; }
+.at-notif__actions { display: flex; gap: 8px; }
+
+.at-profile-menu { display: flex; flex-direction: column; gap: 4px; }
+.at-profile-menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--at-border);
+  margin-bottom: 4px;
+}
+.at-profile-menu button[role="menuitem"] {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--at-text);
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+.at-profile-menu button[role="menuitem"]:hover { background: var(--at-surface); }
+.at-profile-menu__signout { color: var(--at-text-secondary) !important; }
+.at-dev-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--at-text-secondary);
+  cursor: pointer;
+}
+
+/* Body + rail */
+.at-shell__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.at-rail {
+  flex: 0 0 232px;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--at-panel);
+  border-right: 1px solid var(--at-border);
+  padding: 16px 12px;
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+}
+.at-rail__items { display: flex; flex-direction: column; gap: 4px; }
+.at-rail__btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--at-text-secondary);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--at-transition), color var(--at-transition);
+}
+.at-rail__btn:hover { background: var(--at-surface); color: var(--at-text); }
+.at-rail__btn--active { background: var(--at-surface); color: var(--at-text); border-color: var(--at-border); }
+.at-rail__icon { width: 24px; text-align: center; }
+.at-rail__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--at-gold);
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.at-rail__foot { border-top: 1px solid var(--at-border); padding-top: 12px; }
+
+.at-shell__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.at-shell__content {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.at-shell--focus .at-shell__content { max-width: none; padding: 0; }
+
+/* Bottom tab bar (mobile) */
+.at-tabbar { display: none; }
+
+@media (max-width: 1099px) and (min-width: 720px) {
+  .at-rail { flex-basis: 80px; width: 80px; padding: 16px 8px; }
+  .at-rail__label { display: none; }
+  .at-rail__btn { justify-content: center; }
+  .at-rail__dot { position: absolute; top: 8px; right: 8px; margin: 0; }
+  .at-logo__word { display: none; }
+}
+
+@media (max-width: 719px) {
+  .at-rail { display: none; }
+  .at-topbar__currencies .at-currency__value { max-width: 64px; overflow: hidden; text-overflow: ellipsis; }
+  .at-shell__content { padding: 16px 16px 96px; }
+  .at-shell--focus .at-shell__content { padding: 0; }
+  .at-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 72px;
+    background: var(--at-panel);
+    border-top: 1px solid var(--at-border);
+    z-index: 60;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .at-tabbar__btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--at-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+  }
+  .at-tabbar__btn--active { color: var(--at-gold); }
+  .at-tabbar__icon { position: relative; font-size: 18px; }
+  .at-tabbar__icon .at-rail__dot { position: absolute; top: -2px; right: -10px; margin: 0; }
+}

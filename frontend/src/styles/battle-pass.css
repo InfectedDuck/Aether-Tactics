@@ -1,0 +1,197 @@
+/* Battle Pass screen (redesign Phase 3.1). Track scrolls horizontally
+ * inside its own container, never the page.
+ */
+
+.at-battle-pass {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: transparent;
+}
+
+.at-bp-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  background: var(--at-surface);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius-card);
+  flex-wrap: wrap;
+}
+
+.at-bp-hero__main {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.at-bp-hero__tier {
+  font-weight: 800;
+  font-size: 24px;
+}
+
+.at-track-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
+.at-track-controls__btns {
+  display: flex;
+  gap: 8px;
+}
+
+.at-track-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius-card);
+  background: var(--at-panel);
+  padding: 16px;
+}
+
+.at-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 120px;
+  gap: 8px;
+  width: max-content;
+  min-width: 100%;
+}
+
+.at-track-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--at-surface);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius-tier);
+  padding: 8px;
+  cursor: pointer;
+  color: var(--at-text);
+  transition: border-color var(--at-transition), transform var(--at-transition);
+}
+
+.at-track-col:hover {
+  transform: translateY(var(--at-lift));
+}
+
+.at-track-cell {
+  height: 72px;
+  display: grid;
+  place-items: center;
+  background: var(--at-group);
+  border: 1px solid var(--at-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.at-track-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.at-track-cell__glyph {
+  font-size: 24px;
+  color: var(--at-gold);
+}
+
+.at-track-cell__empty {
+  color: var(--at-text-disabled);
+}
+
+.at-track-cell__number,
+.at-track-col .at-track-cell__number {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--at-text-muted);
+}
+
+.at-bp-preview {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--at-surface);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius-card);
+}
+
+.at-bp-preview__art {
+  width: 120px;
+  height: 84px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--at-group);
+  border: 1px solid var(--at-border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 28px;
+  color: var(--at-gold);
+}
+
+.at-bp-preview__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.at-bp-preview__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.at-bp-preview__main .at-body {
+  color: var(--at-text-secondary);
+  margin: 0;
+}
+
+.at-bp-preview__action {
+  flex: 0 0 auto;
+}
+
+.at-missions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.at-bp-footnote {
+  margin-top: 12px;
+}
+
+@media (max-width: 719px) {
+  .at-bp-hero {
+    padding: 16px;
+  }
+
+  .at-bp-preview {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .at-bp-preview__art {
+    width: 100%;
+    height: 120px;
+  }
+}

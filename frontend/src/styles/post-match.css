@@ -1,0 +1,128 @@
+/* Post-match screen (redesign Phase 3.4). Centered single column. */
+
+.at-postmatch {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.at-result {
+  text-align: center;
+  padding: 24px 16px 8px;
+}
+
+.at-result__title {
+  font-family: var(--at-font-display);
+  font-size: 40px;
+  line-height: 1.1;
+  margin: 0 0 8px;
+}
+
+.at-result__title--victory {
+  color: var(--at-gold);
+}
+
+.at-result__title--defeat {
+  color: var(--at-text-secondary);
+}
+
+.at-result .at-body {
+  color: var(--at-text-secondary);
+  margin: 0;
+}
+
+.at-card {
+  background: var(--at-surface);
+  border: 1px solid var(--at-border);
+  border-radius: var(--at-radius-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.at-card .at-body {
+  margin: 0;
+  color: var(--at-text-secondary);
+}
+
+.at-rewards {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.at-rewards div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.at-rewards dt {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--at-text-muted);
+}
+
+.at-rewards dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.at-rewards__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.at-rewards__missions {
+  margin: 0;
+}
+
+.at-coach-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.at-coach-cols .at-body {
+  margin: 4px 0 0;
+}
+
+.at-postmatch__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 8px 0 24px;
+}
+
+/* Legacy detail sections rendered inside the new shell when
+ * "Full coach review" is expanded. */
+.at-postmatch__details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 719px) {
+  .at-coach-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .at-result__title {
+    font-size: 32px;
+  }
+
+  .at-postmatch__actions .at-btn {
+    flex: 1 1 100%;
+  }
+}

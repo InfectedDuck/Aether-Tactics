@@ -1,0 +1,165 @@
+/* Aether Tactics client redesign — design tokens (Phase 0).
+ * Source: docs/REDESIGN_PLAN.md Phase 0 / component sheet p.12.
+ * Additive only: defines --at-* variables + .at- base helpers.
+ * Does NOT override legacy styles.css. New screens opt in via .at- prefix.
+ */
+
+:root {
+  /* Surfaces */
+  --at-bg: #0a0d14;
+  --at-panel: #0d111b;
+  --at-surface: #121826;
+  --at-raised: #182033;
+  --at-hover: #222c42;
+  --at-border: #1e2638;
+  --at-group: #0f1420;
+
+  /* Text */
+  --at-text: #eceff6;
+  --at-text-secondary: #a7b0c4;
+  --at-text-muted: #7c869c;
+  --at-text-disabled: #5c667d;
+
+  /* Gold (primary action) */
+  --at-gold: #ffb81c;
+  --at-gold-hover: #ffc94d;
+  --at-gold-pressed: #e6a00f;
+  --at-gold-tint: rgba(255, 184, 28, 0.12);
+  --at-on-gold: #1b1300;
+
+  /* Factions */
+  --at-nomads: #e0a458;
+  --at-iron-guard: #8fb3d9;
+  --at-sun-court: #f59e3d;
+  --at-void-order: #a98bfa;
+
+  /* Rarity */
+  --at-rarity-common: #8c95a8;
+  --at-rarity-rare: #4c9dff;
+  --at-rarity-epic: #9b6bff;
+  --at-rarity-legendary: #ffb81c;
+
+  /* Currencies + presence */
+  --at-shards: #3cc8e0;
+  --at-essence: #f5a524;
+  --at-online: #34d399;
+  --at-in-match: #f59e0b;
+
+  /* Spacing */
+  --at-space-1: 4px;
+  --at-space-2: 8px;
+  --at-space-3: 12px;
+  --at-space-4: 16px;
+  --at-space-6: 24px;
+  --at-space-8: 32px;
+  --at-space-12: 48px;
+  --at-space-16: 64px;
+
+  /* Radii */
+  --at-radius-chip: 8px;
+  --at-radius-button: 12px;
+  --at-radius-tier: 12px;
+  --at-radius-card: 16px;
+  --at-radius-pill: 999px;
+
+  /* Type */
+  --at-font-body: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --at-font-display: "Audiowide", "Manrope", ui-sans-serif, system-ui, sans-serif;
+
+  /* Motion */
+  --at-transition: 150ms ease;
+  --at-lift: -2px;
+}
+
+/* Base scope for all redesigned surfaces. Keeps new styles from leaking
+ * into legacy screens and vice versa. */
+.at-root {
+  font-family: var(--at-font-body);
+  background: var(--at-bg);
+  color: var(--at-text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.at-root h1,
+.at-root h2,
+.at-root h3 {
+  margin: 0;
+  color: var(--at-text);
+}
+
+.at-page-title {
+  font-family: var(--at-font-display);
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.at-hero {
+  font-weight: 800;
+  font-size: 40px;
+  line-height: 1.1;
+}
+
+.at-section-title {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.at-card-title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.at-body {
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.at-caption {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--at-text-secondary);
+}
+
+.at-overline {
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--at-text-muted);
+}
+
+/* Claimable glow pulse */
+@keyframes at-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 184, 28, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 184, 28, 0);
+  }
+}
+
+.at-claimable-glow {
+  animation: at-glow-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .at-root *,
+  .at-root *::before,
+  .at-root *::after {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .at-claimable-glow {
+    animation: none !important;
+  }
+}

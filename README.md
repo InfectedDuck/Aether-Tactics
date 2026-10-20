@@ -389,6 +389,7 @@ The original single-page prototype (`index.html`, `styles.css`, `app.js`) is arc
 - Multiplayer validates turns and several board transitions on the server, including standard moves plus ability moves such as Dash, Phase Shift, Open Roads, Sun Lance, Crown Surge, Fortify, Barricade, Sandstorm, and Collapse.
 - The app has graceful local fallback data for content/bootstrap flows, so the frontend can still be explored if the backend is temporarily unavailable.
 - `SUPABASE_SERVICE_ROLE_KEY` is used only by the backend. The frontend uses the public anon key and sends user sessions through Supabase Auth.
+- `frontend/tests/e2e` has Playwright browser tests (demo flow, 3D board smoke, private-lobby room sync, battle-pass progression rendering, 390px overflow guard). Run with `npm run test:e2e` from `frontend/`; no backend needed. CI runs them on every push.
 
 ## Supabase Database
 
@@ -630,4 +631,3 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY` in Vercel or frontend code.
 
 - Replace in-memory multiplayer rooms with Redis or Supabase Realtime.
 - Split the large `frontend/src/App.jsx` into feature modules.
-- Add automated browser tests for 3D rendering, room sync, and reward progression.
